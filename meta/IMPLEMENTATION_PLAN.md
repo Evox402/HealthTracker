@@ -15,10 +15,10 @@ The cut line if time runs short: Phases 0–4 are the **must-have** for daily us
 ---
 
 ## Phase 0 — Scaffold & pipeline (Claude Code, ~0.5 day)
-- [ ] Vite + React + TS (strict) + Tailwind + shadcn/ui init; `@/` alias.
-- [ ] `vite-plugin-pwa`, `manifest.json`, placeholder icons, `base: '/MedicineAdjuster/'`, HashRouter shell with bottom nav and empty screens.
-- [ ] Vitest + Playwright configured; `npm run typecheck | test | e2e | build` scripts.
-- [ ] `.github/workflows/deploy.yml` → GitHub Pages (enable Pages "GitHub Actions" source in repo settings).
+- [x] Vite + React + TS (strict) + Tailwind; `@/` alias. UI primitives are small hand-written shadcn-style components in `components/ui` (no Radix dependency).
+- [x] `vite-plugin-pwa` (manifest generated from `vite.config.ts`), icons (`scripts/render-icons.mjs`), `base: '/MedicineAdjuster/'`, HashRouter shell with bottom nav and empty screens.
+- [x] Vitest + Playwright configured; `npm run typecheck | test | e2e | build` scripts.
+- [x] `.github/workflows/deploy.yml` → GitHub Pages (enable Pages "GitHub Actions" source in repo settings).
 - [x] `src/lib/types.ts` copied verbatim from SPEC §3.
 - **Done when:** the empty app is installable from the Pages URL on Android and opens offline.
 
@@ -40,23 +40,26 @@ Pure TypeScript in `src/engine/`, no UI dependency.
 - [ ] Still to mock up if needed: Onboarding/disclaimer, Medications (add from library), Settings, and the empty/error states.
 
 ## Phase 3 — UI build & integration (Claude Code, ~1–1.5 days)
-- [ ] Build the screens in React/Tailwind/shadcn following `design/mockups/` (look) and `meta/claude-design/01`–`04` (behaviour and states). Theme tokens come from the mockup colours.
-- [ ] `db.ts` schema + `seed.ts` defaults + `snapshot.ts`; replace the engine stub with the real `runEngine` through `useEngine()`.
-- [ ] Onboarding: disclaimer, prompt to enter the care team's target ranges, `navigator.storage.persist()`.
-- [ ] Medications + library search; Regimen grid + versioned change flow.
-- [ ] Quick Log wired to Dexie (single transaction, undo toast); Today dashboard with live tiles, red-flag banner and top insights.
+- [x] Build the screens in React/Tailwind/shadcn following `design/mockups/` (look) and `meta/claude-design/01`–`04` (behaviour and states). Theme tokens come from the mockup colours.
+- [x] `db.ts` schema + `seed.ts` defaults + `snapshot.ts`; replace the engine stub with the real `runEngine` through `useEngine()`.
+- [x] Onboarding: disclaimer, prompt to enter the care team's target ranges, `navigator.storage.persist()`.
+- [x] Medications + library search; Regimen grid + versioned change flow.
+- [x] Quick Log wired to Dexie (single transaction, undo toast); Today dashboard with live tiles, red-flag banner and top insights.
 - **Done when:** a full day can be logged on the phone and insights appear from real entries.
 
 ## Phase 4 — Insights screen + backup (Claude Code, ~0.5 day)
-- [ ] Insights list with expandable evidence, confidence badges, dismiss; change evaluation cards.
-- [ ] JSON export/import with validation, a safety auto-export before import, and a "last backup" nudge.
-- [ ] Playwright e2e: quick-log happy path (assert ≤ N interactions) and a backup round-trip.
+- [x] Insights list with expandable evidence, confidence badges, dismiss; change evaluation cards.
+- [x] JSON export/import with validation, a safety auto-export before import, and a "last backup" nudge.
+- [x] Playwright e2e: quick-log happy path (assert ≤ N interactions) and a backup round-trip.
 - **🚀 Release to Pages and start real daily use.**
 
 ## Phase 5 — Trends & doctor view (Claude Code, ~1 day)
-- [ ] SVG `TrendChart` with target band, slot filter, regimen change markers and tap-to-inspect.
-- [ ] Per-slot in-range table.
-- [ ] Doctor view + `@media print` A4 layout; test "Save as PDF" in Android Chrome.
+- [x] SVG `TrendChart` with target band, slot filter, regimen change markers and tap-to-inspect.
+- [x] Per-slot in-range table.
+- [x] Doctor view + `@media print` A4 layout.
+- [ ] Test "Save as PDF" in Android Chrome on the real phone.
+
+- **Status (2 Oct):** Phases 0 and 3–5 built in one pass; 86 unit tests + 6 Playwright e2e tests (onboarding, quick log + undo, red flag, unusual values, regimen + dose checklist, demo restore → insights/trends/doctor view).
 
 ## Phase 6 — Hardening (ongoing)
 - [ ] Tune the rule thresholds with real data (keep a `meta/engine-notes.md` log of false positives/negatives).

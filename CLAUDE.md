@@ -5,18 +5,20 @@ Offline, mobile-first PWA for logging vitals, symptoms and medication doses afte
 **Read first:** `meta/PRD.md` (what & why), `meta/SPEC.md` (types, storage, engine rules — source of truth), `meta/IMPLEMENTATION_PLAN.md` (phases, current progress).
 
 ## Stack
-Vite · React · TypeScript (strict) · Tailwind · shadcn/ui · Dexie (IndexedDB) · vite-plugin-pwa · React Router (HashRouter) · Vitest · Playwright · GitHub Pages.
+Vite · React · TypeScript (strict) · Tailwind · shadcn-style primitives in `components/ui` (hand-written, no Radix) · lucide-react icons · Dexie (IndexedDB) · vite-plugin-pwa · React Router (HashRouter) · Vitest · Playwright · GitHub Pages.
 
 ## Commands
 ```bash
-npm run dev        # local dev server (once the UI exists)
+npm run dev        # local dev server
 npm run typecheck  # tsc --noEmit
 npm test           # vitest (engine + lib)
-npm run e2e        # playwright (once the UI exists; uses pre-installed Chromium)
-npm run build      # production build incl. service worker (once the UI exists)
+npm run e2e        # playwright: builds, serves on :4173 and runs e2e/ (uses pre-installed Chromium)
+npm run build      # typecheck + production build incl. service worker
 npm run coverage   # vitest with coverage of src/engine
 ```
-Run `typecheck` and `test` before every commit.
+Run `typecheck` and `test` before every commit; run `e2e` when UI flows change.
+
+Other: `node scripts/render-icons.mjs` re-renders the PNG icons from `public/icons/*.svg`. `e2e/demo.ts` builds a demo backup (the 05-mock-data scenario) used by the e2e tests.
 
 ## Architecture rules
 - `src/engine/` is **pure**: no Dexie, no React, no `Date.now()`, no randomness. Input is `EngineSnapshot` and output is `EngineResult` (SPEC §3). UI code reaches the engine only through `hooks/useEngine`.
@@ -32,6 +34,7 @@ Run `typecheck` and `test` before every commit.
 - No network requests at runtime, no analytics, no third-party scripts.
 
 ## UI conventions
+- No Google Fonts or CDNs: Manrope is bundled via `@fontsource-variable/manrope`.
 - Screens live in `src/components/<feature>/<Name>.tsx` as named exports (only `App.tsx` is a default export). Props interfaces go at the top of the file.
 - Tailwind only; colours via CSS tokens (`bg-[var(--surface)]`). No inline styles, no extra CSS files besides `src/styles/globals.css`.
 - Charts are hand-written SVG components in `components/charts/`; no chart libraries.

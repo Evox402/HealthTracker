@@ -129,7 +129,8 @@ export interface AppSettings {
   theme: 'dark' | 'light' | 'system';
   analysisWindowDays: number;      // default 7
   excludeTags: ContextTag[];       // default ['after_activity']
-  dismissedInsightKeys: string[];
+  dismissedInsightKeys: string[];      // `${key}|${confidence}`
+  lastBackupAt: ISODateTime | null;
 }
 
 // ---------- engine I/O ----------
