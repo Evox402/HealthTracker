@@ -374,13 +374,17 @@ For each above-range pattern from R1 on a parameter that has relevant medication
 - Discussion: "The pattern fits the effect wearing off before the next dose. Options to discuss: an earlier morning dose, splitting the daily amount into more doses, or a longer-acting formulation."
 
 **R3 — Uncovered slot** (`rules/uncoveredSlot.ts`)
-If slot S has an above-range pattern (R1) for parameter p, the current regimen has **no** dose of any relevant medication in S, and the preceding dosed slot's dose is `wearing_off|uncovered` at S's readings → `uncovered_slot`.
-This also handles the issue's example. Suppose BP is high in the Morning and at Noon, the evening dose is the last one, and Night has no dose. The engine reports that the gap from Evening to Morning exceeds the duration. The discussion point is: "Options to discuss: whether part of the evening dose could move to a Night dose to cover the early morning, or a longer-acting drug."
-If the above-range pattern also appears at Noon while the Morning dose is `pre_onset` or just reaching onset, the explanation adds: "Morning dose at 08:10 had not reached its peak effect (approx. 2–4 h) at the noon readings." That is still a discussion point, not a dose change.
+If slot S has an above-range pattern (R1) for parameter p, the current regimen has **no** dose of any relevant medication in S, and at ≥ 60 % of the out-of-range readings **every** relevant medication is `wearing_off|uncovered` → `uncovered_slot`. At least one dose must have been logged; otherwise R1 stays.
+- The explanation names the relevant medication whose last dose is most recent on average, and the slot that dose was usually taken in.
+- **Suggested slot:** the slot just before S in daily order, if it has no relevant dose and isn't where the last dose was taken. Otherwise the option is "an additional dose in S".
+- This handles the issue's example. Suppose BP is high in the Morning and at Noon, a short-acting drug is taken only in the Evening, and Night has no dose. The engine reports that the gap exceeds the drug's duration. The Morning discussion point is: "Morning coverage may be insufficient. Options to discuss: a dose at Night (for example by splitting the Evening dose), or a longer-acting drug." The Noon one suggests a Morning dose.
+
+**R1 pre-onset note:** if, at ≥ 60 % of an above-range pattern's readings, a relevant medication had been taken less than its onset time earlier, R1's explanation adds "At most of these readings the last {drug} dose had been taken less than {onset} earlier and had likely not reached its effect yet." 
 
 **R4 — Peak-effect low** (`rules/peakLow.ts`)
 If below-range readings (low BP, bradycardia) cluster with ≥ 60 % at `peak` coverage of medication m (n ≥ 2) → `peak_low`. If symptoms above threshold for exhaustion/sluggishness occur in the same slot on the same days, add them as evidence.
 - Discussion: "Lows cluster around the expected peak of {drug}. Options to discuss: splitting the dose into smaller, more frequent doses, or separating it in time from other BP/HR-lowering drugs taken in the same slot."
+- A below-range R1 pattern whose readings are all part of a `peak_low` insight is dropped (the peak explains it). Symptom entries attached here are not reported again by R6.
 
 **R5 — Regimen change evaluation** (`rules/changeEvaluation.ts`)
 For each regimen version after the first:
@@ -389,17 +393,19 @@ For each regimen version after the first:
 - If `now < judgeableFrom` → `too_early`. Summary: "Changed 2 days ago; amiodarone needs about 2–3 weeks before its effect can be judged."
 - **Before window:** previous version period, last `analysisWindowDays` days of it. **After window:** from `judgeableFrom` to the next version or `now`.
 - Per (parameter, component, slot): if both sides have n ≥ 2, compare `inRangePct`. A change of ≥ 20 percentage points is `improved` or `worse`; otherwise `unchanged`. Below n = 2 the verdict is `unknown`. If all verdicts are unknown, the status is `insufficient_data`.
-- Summary example: "Since 3 Oct (bisoprolol 2.5 → 5 mg): morning HR in range 20 % → 75 %, evening unchanged."
+- Summary example: "Since Sat 3 Oct (Bisoprolol 2.5 → 5 mg, morning): morning heart rate in range 20 % → 80 %." Slots that changed (improved/worse) are listed; if none did, the unchanged ones are.
 
 **R6 — Symptom link** (`rules/symptomLink.ts`)
-For each symptom with ≥ 2 above-threshold entries in the window: if ≥ 60 % of them fall in the same slot on the same day as an out-of-range reading of the same direction pattern (e.g. exhaustion with low BP/HR), **or** within the `peak` window of a relevant medication → `symptom_link`.
+For each symptom with ≥ 2 above-threshold entries in the window: if ≥ 60 % of them fall in the same slot on the same day as an out-of-range reading (e.g. exhaustion with low BP/HR), **or** within the `peak` window of a timing-sensitive medication in the current regimen → `symptom_link`. The title names the most frequent link ("Nausea often coincides with heart rate below range").
 Chest pain is never "explained" by this rule. It only ever produces a red flag or a neutral "Chest pain above threshold 3 times this week — mention to the care team" insight.
 
 **R7 — Missed dose** (`rules/missedDose.ts`)
-For out-of-range readings where the most recent planned dose of a relevant medication in the preceding 24 h was `skipped`, or `changed` to a lower amount → `missed_dose`. These readings are then **excluded** from R1–R3 for that medication so a skipped dose isn't mistaken for a regimen problem. The explanation names the skipped dose.
+For out-of-range readings where the most recent planned dose of a relevant medication in the preceding 24 h was `skipped`, or `changed` to a lower amount → `missed_dose`. These readings are then **excluded** from all pattern rules (R1–R4, R6 links) so a skipped dose isn't mistaken for a regimen problem. The explanation names the skipped dose and the readings after it.
 
 ### 5.5 Insight dedupe and ordering
-- One insight per `key`. Priority when keys collide: R3 > R2 > R1, and R7 removes evidence from the others.
+- One insight per pattern (parameter, component, slot, direction). Priority when they collide: R3 > R2 > R1; the winner keeps the merged evidence. R7 removes its readings from the others beforehand.
+- The same R1–R3 pattern on several components of one parameter (systolic and diastolic BP) becomes **one** insight, led by the component with the higher score (ties: the first component). Its explanation adds "Diastolic BP was also above range in 5 of 5 readings."
+- Red flags are sorted by time, then component order, readings before symptoms.
 - Insights are sorted by `score` desc, then by most recent evidence.
 - Dismissed keys are hidden by the UI. A dismissed insight reappears if its confidence increases (`key + confidence` is stored).
 
@@ -433,8 +439,8 @@ Approximate values for **pattern reasoning only**, shown in the UI with "approx.
 
 ### 5.7 Required engine test scenarios (`src/engine/__tests__/`)
 Each test uses a fixture builder (`fixtures.ts`) with a fixed `now`.
-1. **Issue example:** bisoprolol in the Evening only (or metoprolol tartrate Morning + Evening), and systolic above range in Morning and Noon on 5 days. Expect R3 `uncovered_slot` for Night/Morning with medium+ confidence. The discussion point mentions a Night dose option and contains no mg number.
-2. **Wearing off:** metoprolol tartrate at 08:00 and 20:00; HR above range at 07:00 (11 h) and 19:00 (11 h) but in range at 10:00 and 14:00. Expect R2.
+1. **Issue example:** metoprolol tartrate (approx. 12 h) in the Evening only, systolic above range in the Morning and at Noon on 5 days, in range in the Evening and at Night. Expect R3 `uncovered_slot` for Morning (suggesting a Night dose) and Noon (suggesting a Morning dose) with medium+ confidence. (A 24 h drug like bisoprolol would still cover the morning, so it can't produce this pattern.)
+2. **Wearing off:** metoprolol tartrate at 08:00 and 18:00; HR above range at 07:00 (13 h after the evening dose) but in range at 10:00, 14:00 and 21:00. Expect R2, not R3 (the Morning slot has a dose).
 3. **Peak low:** carvedilol at 08:00 and SBP below 100 at 09:30 on 3 days. Expect R4 with exhaustion evidence.
 4. **Regimen change improved:** HR morning in range 1/5 before and 4/5 after (bisoprolol 2.5 → 5). Expect `evaluated`, `improved`.
 5. **Amiodarone change 3 days ago:** expect `too_early` with judgeableFrom ≈ +21 days.

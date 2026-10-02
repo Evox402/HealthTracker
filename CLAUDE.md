@@ -9,11 +9,12 @@ Vite · React · TypeScript (strict) · Tailwind · shadcn/ui · Dexie (IndexedD
 
 ## Commands
 ```bash
-npm run dev        # local dev server
+npm run dev        # local dev server (once the UI exists)
 npm run typecheck  # tsc --noEmit
 npm test           # vitest (engine + lib)
-npm run e2e        # playwright (uses pre-installed Chromium)
-npm run build      # production build incl. service worker
+npm run e2e        # playwright (once the UI exists; uses pre-installed Chromium)
+npm run build      # production build incl. service worker (once the UI exists)
+npm run coverage   # vitest with coverage of src/engine
 ```
 Run `typecheck` and `test` before every commit.
 
