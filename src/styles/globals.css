@@ -1,0 +1,123 @@
+@import 'tailwindcss';
+@import '@fontsource-variable/manrope';
+
+/* Theme tokens (values from design/mockups). Components use them via
+   Tailwind arbitrary values, e.g. bg-[var(--surface)] text-[var(--text-muted)]. */
+:root,
+[data-theme='dark'] {
+  color-scheme: dark;
+  --bg: #0b1220;
+  --bg-glow-1: rgba(45, 212, 191, 0.16);
+  --bg-glow-2: rgba(99, 102, 241, 0.18);
+  --surface: rgba(255, 255, 255, 0.06);
+  --surface-2: rgba(11, 18, 32, 0.7);
+  --surface-solid: #131c2e;
+  --border: rgba(255, 255, 255, 0.12);
+  --border-strong: rgba(255, 255, 255, 0.2);
+  --text-primary: #e8eef7;
+  --text-secondary: #b8c4d6;
+  --text-muted: #9aa8bc;
+  --accent: #2dd4bf;
+  --accent-text: #5eead4;
+  --accent-subtle: rgba(45, 212, 191, 0.16);
+  --on-accent: #04201c;
+  --gain: #86efac;
+  --gain-subtle: rgba(74, 222, 128, 0.14);
+  --warn: #fcd34d;
+  --warn-subtle: rgba(251, 191, 36, 0.16);
+  --loss: #fca5a5;
+  --loss-strong: #f87171;
+  --loss-subtle: rgba(248, 113, 113, 0.12);
+  --loss-surface: #3b0d12;
+  --change: #c4b5fd;
+  --change-line: #a78bfa;
+  --change-subtle: rgba(167, 139, 250, 0.16);
+  --band: rgba(45, 212, 191, 0.12);
+}
+
+[data-theme='light'] {
+  color-scheme: light;
+  --bg: #f4f7fb;
+  --bg-glow-1: rgba(13, 148, 136, 0.12);
+  --bg-glow-2: rgba(99, 102, 241, 0.1);
+  --surface: rgba(255, 255, 255, 0.72);
+  --surface-2: #ffffff;
+  --surface-solid: #ffffff;
+  --border: rgba(15, 23, 42, 0.12);
+  --border-strong: rgba(15, 23, 42, 0.22);
+  --text-primary: #0f172a;
+  --text-secondary: #334155;
+  --text-muted: #526075;
+  --accent: #0d9488;
+  --accent-text: #0f766e;
+  --accent-subtle: rgba(13, 148, 136, 0.12);
+  --on-accent: #ffffff;
+  --gain: #15803d;
+  --gain-subtle: rgba(21, 128, 61, 0.1);
+  --warn: #b45309;
+  --warn-subtle: rgba(180, 83, 9, 0.1);
+  --loss: #b91c1c;
+  --loss-strong: #dc2626;
+  --loss-subtle: rgba(220, 38, 38, 0.08);
+  --loss-surface: #fef2f2;
+  --change: #6d28d9;
+  --change-line: #7c3aed;
+  --change-subtle: rgba(124, 58, 237, 0.1);
+  --band: rgba(13, 148, 136, 0.12);
+}
+
+@theme {
+  --font-sans: 'Manrope Variable', system-ui, sans-serif;
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  background-color: var(--bg);
+  background-image: radial-gradient(circle at 15% 0%, var(--bg-glow-1), transparent 40%),
+    radial-gradient(circle at 95% 45%, var(--bg-glow-2), transparent 45%);
+  background-attachment: fixed;
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  -webkit-tap-highlight-color: transparent;
+}
+
+@utility glass {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+}
+
+@utility num {
+  font-variant-numeric: tabular-nums;
+}
+
+input[type='range'] {
+  accent-color: var(--accent);
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* Doctor view: one A4 page, solid and light regardless of app theme. */
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 12mm;
+  }
+  body {
+    background: #fff !important;
+    color: #0f172a !important;
+  }
+  .no-print {
+    display: none !important;
+  }
+}
