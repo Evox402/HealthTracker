@@ -518,6 +518,7 @@ MedicineAdjuster/
 ├── meta/
 │   ├── PRD.md
 │   ├── SPEC.md                   # this file
+│   ├── claude-design/            # paste-ready Claude Design pack (01–05 + README)
 │   └── IMPLEMENTATION_PLAN.md
 ├── design-handoff/               # Claude Design export bundle (Send to Claude Code)
 ├── public/

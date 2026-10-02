@@ -90,6 +90,8 @@ Designed in Claude Design (see brief below). Mobile-first, slick and modern, wit
 
 ## Claude Design Brief
 
+> A self-contained, paste-ready version of this brief, plus the data contract, mock data and drug library, is in `meta/claude-design/` (start with its README).
+
 **App context:** MedicineAdjuster is a personal, offline mobile PWA for a patient recovering from heart surgery. Several times a day they log blood pressure, heart rate, SpO₂, respiratory rate, symptom scores (0–10) and confirm medication doses. A rules engine shows when values leave their target ranges, how that relates to dose timing, and whether regimen changes helped. It phrases findings as discussion points for the care team.
 
 **Screens to design:**

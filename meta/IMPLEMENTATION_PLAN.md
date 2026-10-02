@@ -34,7 +34,7 @@ Pure TypeScript in `src/engine/`, no UI dependency.
 - **Done when:** `npm test` is green and the coverage of `src/engine/` is ≥ 90 % lines.
 
 ## Phase 2 — UI in Claude Design (user + Claude Design, ~1–2 days, parallel)
-- [ ] Paste the **Claude Design Brief** + **Technical setup** sections of `meta/PRD.md` into claude.ai/design.
+- [ ] Follow `meta/claude-design/README.md`: paste `01-design-brief.md` into claude.ai/design and attach files `02`–`05`.
 - [ ] Design all screens with their loading/empty/error/populated states; check the Quick Log on a real phone for the < 30 s goal.
 - [ ] Ask Claude Design to create `HANDOVER.md`, then Export → "Send to Claude Code" → place the bundle in `design-handoff/`.
 

@@ -39,4 +39,4 @@ Run `typecheck` and `test` before every commit.
 - Quick Log must stay under 30 s for a full slot. Don't add required fields.
 
 ## Design handoff
-The UI is designed in Claude Design. The export bundle lands in `design-handoff/` with a `HANDOVER.md`. When integrating, keep our `types.ts`, `engine/` and CI pipeline, and adapt the design code to them, not the other way round.
+The UI is designed in Claude Design from the pack in `meta/claude-design/` (keep it in sync when PRD/SPEC change). The export bundle lands in `design-handoff/` with a `HANDOVER.md`. When integrating, keep our `types.ts`, `engine/` and CI pipeline, and adapt the design code to them, not the other way round.
