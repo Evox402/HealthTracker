@@ -19,18 +19,19 @@ The cut line if time runs short: Phases 0–4 are the **must-have** for daily us
 - [ ] `vite-plugin-pwa`, `manifest.json`, placeholder icons, `base: '/MedicineAdjuster/'`, HashRouter shell with bottom nav and empty screens.
 - [ ] Vitest + Playwright configured; `npm run typecheck | test | e2e | build` scripts.
 - [ ] `.github/workflows/deploy.yml` → GitHub Pages (enable Pages "GitHub Actions" source in repo settings).
-- [ ] `src/lib/types.ts` copied verbatim from SPEC §3.
+- [x] `src/lib/types.ts` copied verbatim from SPEC §3.
 - **Done when:** the empty app is installable from the Pages URL on Android and opens offline.
 
 ## Phase 1 — Engine, test-first (Claude Code, ~1–1.5 days, parallel to mockup review)
 Pure TypeScript in `src/engine/`, no UI dependency.
-- [ ] `fixtures.ts`: a builder for snapshots (`day(n).at('07:10').bp(142, 88)`, `.dose('bisoprolol', 5)`…).
-- [ ] `drugLibrary.ts` (SPEC §5.6). Double-check every value against product information while typing.
-- [ ] `preprocess.ts`, `coverage.ts`, `confidence.ts`, `slots.ts` (shared with UI), plus unit tests.
-- [ ] R0 red flags → R1 → R7 missed dose → R2 → R3 → R4 → R6 → R5 change evaluation, each with its own spec.
-- [ ] Scenario tests 1–11 from SPEC §5.7, including the **no-prescribing** guard.
-- [ ] `runEngine()` assembles, dedupes and sorts (SPEC §5.5).
-- **Done when:** `npm test` is green and the coverage of `src/engine/` is ≥ 90 % lines.
+- [x] `fixtures.ts`: a builder for snapshots (`day(n).at('07:10').bp(142, 88)`, `.dose('bisoprolol', 5)`…).
+- [x] `drugLibrary.ts` (SPEC §5.6). Double-check every value against product information while typing.
+- [x] `preprocess.ts`, `coverage.ts`, `confidence.ts`, `slots.ts` (shared with UI), plus unit tests.
+- [x] R0 red flags → R1 → R7 missed dose → R2 → R3 → R4 → R6 → R5 change evaluation, each with its own spec.
+- [x] Scenario tests 1–11 from SPEC §5.7, including the **no-prescribing** guard.
+- [x] `runEngine()` assembles, dedupes and sorts (SPEC §5.5).
+- **Done when:** `npm test` is green and the coverage of `src/engine/` is ≥ 90 % lines. ✅ 64 tests, 99 % lines (see `npm run coverage`).
+- Follow-up: drug library values were entered from SPEC §5.6 and still need a check against product information.
 
 ## Phase 2 — Mockups (user + Claude, in chat, parallel)
 - [x] Clickable mockup canvas with Today, Quick Log, Trends, Insights, Regimen and the Doctor view (A4), using the demo data from `meta/claude-design/05-mock-data.md`. Sources: `design/mockups/`.
