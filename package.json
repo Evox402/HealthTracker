@@ -14,7 +14,7 @@
     "e2e": "playwright test"
   },
   "devDependencies": {
-    "@playwright/test": "1.56",
+    "@playwright/test": "1.63",
     "@tailwindcss/vite": "^4.3.3",
     "@types/node": "^26.6.4",
     "@types/react": "^19.3.0",
