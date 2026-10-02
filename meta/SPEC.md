@@ -1,6 +1,6 @@
 # SPEC: MedicineAdjuster
 
-Technical specification for the MVP described in `meta/PRD.md`. It is the single source of truth for data shapes and engine behaviour, and both Claude Design (UI) and Claude Code (engine/wiring) build against it.
+Technical specification for the MVP described in `meta/PRD.md`. It is the single source of truth for data shapes and engine behaviour, and the UI and the engine are both built against it.
 
 ---
 
@@ -520,7 +520,7 @@ MedicineAdjuster/
 │   ├── SPEC.md                   # this file
 │   ├── claude-design/            # paste-ready Claude Design pack (01–05 + README)
 │   └── IMPLEMENTATION_PLAN.md
-├── design-handoff/               # Claude Design export bundle (Send to Claude Code)
+├── design/mockups/               # approved mockup canvas sources (.dc.html), the visual reference
 ├── public/
 │   ├── manifest.json
 │   └── icons/                    # 192, 512, maskable

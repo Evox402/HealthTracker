@@ -1,5 +1,7 @@
 # Claude Design Handoff Pack
 
+> **Status:** Claude Design isn't usable on mobile, so the MVP UI is built by Claude Code from the mockups in `design/mockups/`. These files remain the written UI spec, and the steps below still work later from a desktop.
+
 Everything claude.ai/design needs to build the MedicineAdjuster frontend. It's self-contained and deliberately duplicates content from `meta/PRD.md` and `meta/SPEC.md`. **If they ever disagree, PRD/SPEC win.** Update this folder whenever they change.
 
 | File | Purpose |

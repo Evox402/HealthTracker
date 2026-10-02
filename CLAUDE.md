@@ -38,5 +38,5 @@ Run `typecheck` and `test` before every commit.
 - The Doctor view uses solid surfaces (no glass) and must print to one A4 page.
 - Quick Log must stay under 30 s for a full slot. Don't add required fields.
 
-## Design handoff
-The UI is designed in Claude Design from the pack in `meta/claude-design/` (keep it in sync when PRD/SPEC change). The export bundle lands in `design-handoff/` with a `HANDOVER.md`. When integrating, keep our `types.ts`, `engine/` and CI pipeline, and adapt the design code to them, not the other way round.
+## Design
+The UI is built by Claude Code directly. Look and layout: the approved mockups in `design/mockups/*.dc.html` (colours, spacing, glass treatment). Screens, interactions and states: `meta/claude-design/01`–`04`. If a mockup and SPEC disagree on data or behaviour, SPEC wins. Keep `types.ts`, `engine/` and the CI pipeline as the fixed points.
