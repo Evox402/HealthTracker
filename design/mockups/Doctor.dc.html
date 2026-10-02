@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Doctor view</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#0F766E}a:hover{color:#115E59}
+.num{font-variant-numeric:tabular-nums}
+</style>
+</helmet>
+<div style="width: 794px; height: 1123px; box-sizing: border-box; padding: 44px 48px; display: flex; flex-direction: column; gap: 20px; font-family: Manrope, system-ui, sans-serif; color: #0F172A; background: #FFFFFF">
+
+<header style="display: flex; justify-content: space-between; align-items: flex-end; padding-bottom: 14px; border-bottom: 2px solid #0F172A">
+<div style="display: flex; flex-direction: column; gap: 4px">
+<h1 style="margin: 0; font-size: 24px; font-weight: 800">Vitals &amp; medication summary</h1>
+<span style="font-size: 13px; color: #475569">Patient-recorded data · Mon 28 Sep – Fri 2 Oct 2026 · 18 readings</span>
+</div>
+<span style="font-size: 12px; color: #475569">Generated Fri 2 Oct, 13:30</span>
+</header>
+
+<section style="display: flex; flex-direction: column; gap: 8px">
+<h2 style="margin: 0; font-size: 14px; font-weight: 800; letter-spacing: 0.5px; text-transform: uppercase; color: #334155">Current regimen (v2, since Wed 30 Sep 08:00)</h2>
+<div class="num" style="display: grid; grid-template-columns: 2fr repeat(4, minmax(0, 1fr)); font-size: 13px; border: 1px solid #CBD5E1; border-radius: 8px">
+<span style="padding: 7px 10px; font-weight: 800; background: #F1F5F9">Medication</span><span style="padding: 7px 10px; font-weight: 800; background: #F1F5F9">Morning</span><span style="padding: 7px 10px; font-weight: 800; background: #F1F5F9">Noon</span><span style="padding: 7px 10px; font-weight: 800; background: #F1F5F9">Evening</span><span style="padding: 7px 10px; font-weight: 800; background: #F1F5F9">Night</span>
+<span style="padding: 7px 10px">Bisoprolol</span><span style="padding: 7px 10px">5 mg</span><span style="padding: 7px 10px">–</span><span style="padding: 7px 10px">–</span><span style="padding: 7px 10px">–</span>
+<span style="padding: 7px 10px">Ramipril</span><span style="padding: 7px 10px">2.5 mg</span><span style="padding: 7px 10px">–</span><span style="padding: 7px 10px">2.5 mg</span><span style="padding: 7px 10px">–</span>
+<span style="padding: 7px 10px">Amiodarone</span><span style="padding: 7px 10px">200 mg</span><span style="padding: 7px 10px">–</span><span style="padding: 7px 10px">–</span><span style="padding: 7px 10px">–</span>
+</div>
+<div style="font-size: 13px; color: #334155">Changes: <strong>Wed 30 Sep</strong> bisoprolol 2.5 → 5 mg (Dr. Weber): morning HR in range 0 % → 100 %, morning systolic unchanged. Adherence: 1 skipped dose (ramipril, Tue evening).</div>
+</section>
+
+<section style="display: flex; flex-direction: column; gap: 8px">
+<h2 style="margin: 0; font-size: 14px; font-weight: 800; letter-spacing: 0.5px; text-transform: uppercase; color: #334155">Systolic BP (mmHg) · target 100–130</h2>
+<svg width="700" height="170" viewBox="0 0 700 170" role="img" aria-label="Systolic blood pressure trend with target band" style="color: #0F172A; overflow: visible">
+<rect x="22" y="64.3" width="678" height="64.3" rx="6" fill="#0D9488" fill-opacity="0.12"></rect>
+<text x="0" y="132.6" font-size="11" fill="currentColor" fill-opacity="0.6">100</text>
+<text x="0" y="68.3" font-size="11" fill="currentColor" fill-opacity="0.6">130</text>
+<text x="0" y="8" font-size="11" fill="currentColor" fill-opacity="0.6">160</text>
+<line x1="361.0" y1="0" x2="361.0" y2="150" stroke="#7C3AED" stroke-width="1.5" stroke-dasharray="4 4"></line>
+<polyline points="30.0,34.3 68.9,47.1 107.9,85.7 146.8,90.0 185.8,40.7 224.7,51.4 263.6,90.0 302.6,83.6 341.5,25.7 380.5,42.9 419.4,81.4 458.4,94.3 497.3,45.0 536.2,68.6 575.2,96.4 614.1,87.9 653.1,36.4 692.0,72.9" fill="none" stroke="currentColor" stroke-opacity="0.4" stroke-width="1.5"></polyline>
+<circle cx="30.0" cy="34.3" r="3.5" fill="#B45309"></circle>
+<circle cx="68.9" cy="47.1" r="3.5" fill="#B45309"></circle>
+<circle cx="107.9" cy="85.7" r="3.5" fill="#15803D"></circle>
+<circle cx="146.8" cy="90.0" r="3.5" fill="#15803D"></circle>
+<circle cx="185.8" cy="40.7" r="3.5" fill="#B45309"></circle>
+<circle cx="224.7" cy="51.4" r="3.5" fill="#B45309"></circle>
+<circle cx="263.6" cy="90.0" r="3.5" fill="#15803D"></circle>
+<circle cx="302.6" cy="83.6" r="3.5" fill="#15803D"></circle>
+<circle cx="341.5" cy="25.7" r="3.5" fill="#B45309"></circle>
+<circle cx="380.5" cy="42.9" r="3.5" fill="#B45309"></circle>
+<circle cx="419.4" cy="81.4" r="3.5" fill="#15803D"></circle>
+<circle cx="458.4" cy="94.3" r="3.5" fill="#15803D"></circle>
+<circle cx="497.3" cy="45.0" r="3.5" fill="#B45309"></circle>
+<circle cx="536.2" cy="68.6" r="3.5" fill="#15803D"></circle>
+<circle cx="575.2" cy="96.4" r="3.5" fill="#15803D"></circle>
+<circle cx="614.1" cy="87.9" r="3.5" fill="#15803D"></circle>
+<circle cx="653.1" cy="36.4" r="3.5" fill="#B45309"></circle>
+<circle cx="692.0" cy="72.9" r="3.5" fill="#15803D"></circle>
+<text x="30.0" y="166" font-size="11" fill="currentColor" fill-opacity="0.6">Mon</text>
+<text x="185.8" y="166" font-size="11" fill="currentColor" fill-opacity="0.6">Tue</text>
+<text x="341.5" y="166" font-size="11" fill="currentColor" fill-opacity="0.6">Wed</text>
+<text x="497.3" y="166" font-size="11" fill="currentColor" fill-opacity="0.6">Thu</text>
+<text x="653.1" y="166" font-size="11" fill="currentColor" fill-opacity="0.6">Fri</text>
+</svg>
+<div style="font-size: 11px; color: #475569">Points: green = in range, amber = above. Shaded band = target. Dashed line = regimen change.</div>
+</section>
+
+<section style="display: flex; flex-direction: column; gap: 8px">
+<h2 style="margin: 0; font-size: 14px; font-weight: 800; letter-spacing: 0.5px; text-transform: uppercase; color: #334155">% of readings in range by time of day</h2>
+<div class="num" style="display: grid; grid-template-columns: 2fr repeat(4, minmax(0, 1fr)); font-size: 13px; border: 1px solid #CBD5E1; border-radius: 8px">
+<span style="padding: 7px 10px; font-weight: 800; background: #F1F5F9">Parameter</span><span style="padding: 7px 10px; font-weight: 800; background: #F1F5F9">Morning</span><span style="padding: 7px 10px; font-weight: 800; background: #F1F5F9">Noon</span><span style="padding: 7px 10px; font-weight: 800; background: #F1F5F9">Evening</span><span style="padding: 7px 10px; font-weight: 800; background: #F1F5F9">Night</span>
+<span style="padding: 7px 10px">Systolic BP</span><span style="padding: 7px 10px; font-weight: 800; color: #B45309">▲ 0 % (143)</span><span style="padding: 7px 10px; color: #B45309">▲ 40 % (134)</span><span style="padding: 7px 10px">100 % (119)</span><span style="padding: 7px 10px">100 % (119)</span>
+<span style="padding: 7px 10px">Diastolic BP</span><span style="padding: 7px 10px; color: #B45309">▲ 40 % (85)</span><span style="padding: 7px 10px">100 % (78)</span><span style="padding: 7px 10px">100 % (74)</span><span style="padding: 7px 10px">100 % (72)</span>
+<span style="padding: 7px 10px">Heart rate</span><span style="padding: 7px 10px">60 % (88)</span><span style="padding: 7px 10px; color: #B91C1C; font-weight: 800">▼ 80 % · 43 on Fri</span><span style="padding: 7px 10px">100 % (76)</span><span style="padding: 7px 10px">100 % (70)</span>
+<span style="padding: 7px 10px">SpO₂ / Resp. rate</span><span style="padding: 7px 10px">100 %</span><span style="padding: 7px 10px">100 %</span><span style="padding: 7px 10px">100 %</span><span style="padding: 7px 10px">100 %</span>
+</div>
+</section>
+
+<section style="display: flex; flex-direction: column; gap: 8px">
+<h2 style="margin: 0; font-size: 14px; font-weight: 800; letter-spacing: 0.5px; text-transform: uppercase; color: #334155">Patterns noted</h2>
+<ol style="margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 6px; font-size: 13px; line-height: 1.45">
+<li><strong>Morning systolic above range (5/5, mean 143)</strong>: readings about 13 h after the last ramipril dose; no BP medication scheduled at night.</li>
+<li><strong>HR 43 bpm on Fri 12:05</strong>: about 4 h after the morning bisoprolol 5 mg dose (red-flag limit 45).</li>
+<li><strong>Morning exhaustion 5–6/10</strong> on Thu and Fri.</li>
+<li>One skipped dose (ramipril, Tue evening); the following morning reading (148) is excluded from the patterns above.</li>
+</ol>
+</section>
+
+<footer style="margin-top: auto; padding-top: 12px; border-top: 1px solid #CBD5E1; font-size: 11px; color: #475569; line-height: 1.4">Recorded by the patient with MedicineAdjuster. Patterns are rule-based summaries of self-measured data, not a diagnosis or treatment recommendation. Drug timing values are approximate.</footer>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":794,"height":1123}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

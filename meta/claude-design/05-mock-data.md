@@ -29,7 +29,7 @@ There is no Night dose in either version.
 - HR: Morning 94–102 on days 1–2 (above 90), then 78–86 from day 3 (after the bisoprolol change); otherwise 68–84.
 - One evening HR of 104 on day 4, tagged `after_activity`.
 - SpO₂ 95–98, RR 14–18 throughout.
-- **Day 5 noon:** HR **43**, which triggers the red-flag banner on Today.
+- **Day 5 noon** (logged at 12:05): HR **43**, which triggers the red-flag banner on Today.
 
 **Symptoms**
 - Exhaustion 5–6 on the mornings of days 4–5 (threshold 4).
@@ -40,7 +40,7 @@ There is no Night dose in either version.
 **Dose events**
 - All doses `taken` near the slot default times.
 - Day 2 evening ramipril was `skipped`.
-- Day 5 morning doses taken at 08:10. Noon slot isn't logged yet, so Today shows "Log now" for Noon.
+- Day 5 morning doses taken at 08:10. Noon is logged at 12:05 (no noon doses are scheduled), so Today shows "Next: Evening · 18:00" with a "Log now" button.
 
 ## Mock engine output (stub)
 

@@ -1,12 +1,13 @@
 # Implementation Plan: MedicineAdjuster
 
-Goal: a usable MVP **within days**, while the author is still in hospital. The work runs in two parallel tracks that meet at the shared types in `src/lib/types.ts` (SPEC §3).
+Goal: a usable MVP **within days**, while the author is still in hospital.
+
+> **Change of plan (2 Oct):** Claude Design isn't available on mobile, and the author is mobile-only right now. The UI is therefore designed as a **clickable mockup canvas** (a Claude artifact you can open on a phone) and then **built directly by Claude Code** from those mockups. The mockup sources are in `design/mockups/`. The `meta/claude-design/` pack stays as the written UI spec and can still be used in Claude Design later from a desktop.
 
 ```
-Day 1                 Day 2                  Day 3                  Day 4
-Track A  Claude Design ── screens + Dexie + mock ──▶ export → design-handoff/
-Track B  Claude Code   ── scaffold · types · engine (TDD) ──────────▶
-                                                     Integration ── deploy ── real use
+Day 1                       Day 2                  Day 3                  Day 4
+Mockups ── review on phone ──▶ (feedback rounds)
+Claude Code ── scaffold · types · engine (TDD) ──▶ UI screens from mockups ──▶ deploy ── real use
 ```
 
 The cut line if time runs short: Phases 0–4 are the **must-have** for daily use in hospital. Phase 5 (trends polish, doctor view/PDF) can follow a day later. The JSON backup (in Phase 4) is never cut.
@@ -21,9 +22,7 @@ The cut line if time runs short: Phases 0–4 are the **must-have** for daily us
 - [ ] `src/lib/types.ts` copied verbatim from SPEC §3.
 - **Done when:** the empty app is installable from the Pages URL on Android and opens offline.
 
-> If Claude Design's export arrives first, use its scaffold instead and re-apply the pipeline items on top.
-
-## Phase 1 — Engine, test-first (Claude Code, ~1–1.5 days, parallel to Track A)
+## Phase 1 — Engine, test-first (Claude Code, ~1–1.5 days, parallel to mockup review)
 Pure TypeScript in `src/engine/`, no UI dependency.
 - [ ] `fixtures.ts`: a builder for snapshots (`day(n).at('07:10').bp(142, 88)`, `.dose('bisoprolol', 5)`…).
 - [ ] `drugLibrary.ts` (SPEC §5.6). Double-check every value against product information while typing.
@@ -33,13 +32,14 @@ Pure TypeScript in `src/engine/`, no UI dependency.
 - [ ] `runEngine()` assembles, dedupes and sorts (SPEC §5.5).
 - **Done when:** `npm test` is green and the coverage of `src/engine/` is ≥ 90 % lines.
 
-## Phase 2 — UI in Claude Design (user + Claude Design, ~1–2 days, parallel)
-- [ ] Follow `meta/claude-design/README.md`: paste `01-design-brief.md` into claude.ai/design and attach files `02`–`05`.
-- [ ] Design all screens with their loading/empty/error/populated states; check the Quick Log on a real phone for the < 30 s goal.
-- [ ] Ask Claude Design to create `HANDOVER.md`, then Export → "Send to Claude Code" → place the bundle in `design-handoff/`.
+## Phase 2 — Mockups (user + Claude, in chat, parallel)
+- [x] Clickable mockup canvas with Today, Quick Log, Trends, Insights, Regimen and the Doctor view (A4), using the demo data from `meta/claude-design/05-mock-data.md`. Sources: `design/mockups/`.
+- [ ] The author reviews it on their phone and gives feedback; Claude revises the canvas. Repeat until the look and flow are approved.
+- [ ] Copy the approved mockup sources back into `design/mockups/`.
+- [ ] Still to mock up if needed: Onboarding/disclaimer, Medications (add from library), Settings, and the empty/error states.
 
-## Phase 3 — Integration (Claude Code, ~0.5–1 day)
-- [ ] Merge the design-handoff code into `src/`, keeping our `types.ts`, `engine/` and pipeline. Reconcile any type drift, with SPEC as the source of truth.
+## Phase 3 — UI build & integration (Claude Code, ~1–1.5 days)
+- [ ] Build the screens in React/Tailwind/shadcn following `design/mockups/` (look) and `meta/claude-design/01`–`04` (behaviour and states). Theme tokens come from the mockup colours.
 - [ ] `db.ts` schema + `seed.ts` defaults + `snapshot.ts`; replace the engine stub with the real `runEngine` through `useEngine()`.
 - [ ] Onboarding: disclaimer, prompt to enter the care team's target ranges, `navigator.storage.persist()`.
 - [ ] Medications + library search; Regimen grid + versioned change flow.

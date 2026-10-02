@@ -57,7 +57,7 @@ After heart surgery, heart rate and blood pressure have to be titrated with seve
 None. The app is standalone; data never leaves the device except through a user-initiated JSON or PDF export.
 
 ## Design Direction
-Designed in Claude Design (see brief below). Mobile-first, slick and modern, with a subtle glass effect (frosted cards over a soft gradient) used only where it doesn't reduce legibility. Large tap targets, a clinical clarity of numbers and colour-coded ranges. Dark and light themes.
+Designed as a clickable mockup canvas reviewed on the phone (sources in `design/mockups/`); Claude Design (brief below) is optional for later, from a desktop. Mobile-first, slick and modern, with a subtle glass effect (frosted cards over a soft gradient) used only where it doesn't reduce legibility. Large tap targets, a clinical clarity of numbers and colour-coded ranges. Dark and light themes.
 
 ## Constraints
 - **Timeline: ASAP (days).** It needs to be usable while still in hospital. A strict MVP; polish comes later.
@@ -89,6 +89,8 @@ Designed in Claude Design (see brief below). Mobile-first, slick and modern, wit
 ---
 
 ## Claude Design Brief
+
+> **Status:** Claude Design isn't usable on mobile, so the MVP UI is built by Claude Code from the mockups in `design/mockups/`. This brief remains the written UI spec (screens, interactions, states).
 
 > A self-contained, paste-ready version of this brief, plus the data contract, mock data and drug library, is in `meta/claude-design/` (start with its README).
 
