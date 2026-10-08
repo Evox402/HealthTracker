@@ -1,20 +1,22 @@
-# MedicineAdjuster
+# Health Tracker
 
-Offline, mobile-first app (PWA) for logging blood pressure, heart rate, SpO₂, breathing rate, symptoms and medication doses through the day. A transparent rules engine shows **when** values leave their target range, **how that relates to dose timing**, and **whether regimen changes helped**. It phrases its findings as points to discuss with your care team.
+Offline, mobile-first app (PWA) for tracking your medications (tick off doses as taken), blood pressure, pulse and weight, and your own trackers: 0–10 scales such as pain, stool (Bristol scale), any number with a unit, or yes/no events with a note. Every tracker has a chart, and a one-page summary prints for your care team. Dangerous values (red flags you set) show a warning first.
 
-> **Not medical advice.** Never change medication without your care team. Patterns are rule-based summaries of self-measured data; drug timing values are approximate.
+> **Not medical advice.** Never change medication without your care team. Charts and summaries show your own measurements; they are not a diagnosis.
+
+Formerly *MedicineAdjuster*: the repo was renamed on 8 Oct 2026. The local database keeps its old name (`medicine-adjuster`) so existing data carries over.
 
 All data stays on the device (IndexedDB). Use **Settings → Backup → Export** regularly.
 
 ## Install on Android
-1. Open the GitHub Pages URL (`https://<user>.github.io/MedicineAdjuster/`) in Chrome.
+1. Open the GitHub Pages URL (`https://evox402.github.io/HealthTracker/`) in Chrome.
 2. Menu ⋮ → **Install app** (or "Add to Home screen").
 3. Open it from the home screen. It works offline from then on.
 
 ## Development
 ```bash
 npm ci
-npm run dev        # http://localhost:5173/MedicineAdjuster/
+npm run dev        # http://localhost:5173/HealthTracker/
 npm test           # engine + data layer (Vitest)
 npm run e2e        # end-to-end (Playwright)
 npm run build      # production build → dist/

@@ -1,8 +1,8 @@
-# SPEC: Health Tracker (repo: MedicineAdjuster)
+# SPEC: Health Tracker (formerly MedicineAdjuster)
 
 Technical specification for the app described in `meta/PRD.md`. It is the single source of truth for data shapes and engine behaviour, and the UI and the engine are both built against it.
 
-> **Pivot (8 Oct 2026):** the MVP shipped as "MedicineAdjuster", a regimen/PK insights engine. In practice only the tracking was used, so the app became a symptom & bio tracker: a med stack to tick off, vitals, custom trackers and charts. The insights engine, drug library and regimen history UI were removed; red flags stay. The repo name, Pages URL and IndexedDB name are unchanged so installed apps keep their data (database v1 → v2, §4).
+> **Pivot (8 Oct 2026):** the MVP shipped as "MedicineAdjuster", a regimen/PK insights engine. In practice only the tracking was used, so the app became a symptom & bio tracker: a med stack to tick off, vitals, custom trackers and charts. The insights engine, drug library and regimen history UI were removed; red flags stay. The IndexedDB name is unchanged so existing data carries over (database v1 → v2, §4). The repo was renamed to `HealthTracker` the same day (§10).
 
 ---
 
@@ -337,7 +337,7 @@ Bottom nav: Today · Charts · Meds · Doctor. Data access goes through `hooks/u
 ## 10. PWA & deployment
 - `vite-plugin-pwa` with `registerType: 'autoUpdate'`, precaching all build assets. Works offline from the first load.
 - Manifest (from `vite.config.ts`): name "Health Tracker", short_name "Health", `display: standalone`, theme colour = `--bg` dark, icons 192/512 + maskable.
-- `base: '/MedicineAdjuster/'` (unchanged, so installs and IndexedDB origin stay the same). HashRouter avoids GitHub Pages 404s.
+- `base: '/HealthTracker/'` → https://evox402.github.io/HealthTracker/. The repo and base path were `MedicineAdjuster` until 8 Oct 2026; GitHub doesn't redirect old Pages paths, so the app is installed again from the new address. IndexedDB and localStorage are per origin (`evox402.github.io`), not per path, so the data carries over. HashRouter avoids GitHub Pages 404s.
 - `ci.yml`: typecheck, unit tests, Playwright e2e. `deploy.yml`: on push to `main`, typecheck + test + build, then deploy to Pages.
 
 ---
