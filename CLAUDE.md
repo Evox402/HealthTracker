@@ -1,6 +1,6 @@
-# CLAUDE.md — MedicineAdjuster (display name: Health Tracker)
+# CLAUDE.md — Health Tracker (formerly MedicineAdjuster)
 
-Offline, mobile-first PWA for tracking a med stack (ticked off as taken), vitals (BP, pulse, weight) and custom trackers (0–10 scale, stool/Bristol, number with unit, yes/no + note), with charts and a printable doctor summary. The engine only raises red flags. Single user, Android Chrome, all data stays on the device. The repo name, Pages base path and IndexedDB name stay `MedicineAdjuster` / `medicine-adjuster` so existing installs keep their data.
+Offline, mobile-first PWA for tracking a med stack (ticked off as taken), vitals (BP, pulse, weight) and custom trackers (0–10 scale, stool/Bristol, number with unit, yes/no + note), with charts and a printable doctor summary. The engine only raises red flags. Single user, Android Chrome, all data stays on the device. Repo and Pages base path: `HealthTracker` (renamed from `MedicineAdjuster` on 8 Oct 2026). The IndexedDB name and backup `app` id stay `medicine-adjuster` so existing data and backups keep working; never rename them.
 
 **Read first:** `meta/PRD.md` (what & why), `meta/SPEC.md` (types, storage, engine rules — source of truth), `meta/IMPLEMENTATION_PLAN.md` (phases, current progress).
 
