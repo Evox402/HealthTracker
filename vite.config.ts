@@ -14,9 +14,9 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['icons/icon.svg'],
       manifest: {
-        name: 'MedicineAdjuster',
-        short_name: 'MedAdjust',
-        description: 'Log vitals, symptoms and doses; see patterns to discuss with your care team.',
+        name: 'Health Tracker',
+        short_name: 'Health',
+        description: 'Track medications, vitals and symptoms, with charts and a summary for your care team.',
         display: 'standalone',
         orientation: 'portrait',
         background_color: '#0B1220',

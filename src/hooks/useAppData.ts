@@ -42,8 +42,13 @@ export function useEngine(data: AppData | undefined, now: Date): EngineResult | 
 }
 
 export function useCurrent(data: AppData | undefined, now: Date): { regimen: RegimenVersion | undefined; slot: SlotDef | undefined } {
-  return useMemo(() => ({
-    regimen: data ? currentRegimen(data.regimens, now) : undefined,
-    slot: data && data.slots.length > 0 ? slotFor(now, data.slots) : undefined,
-  }), [data, now]);
+  // Real current time, not the 30 s tick: a stack edit saved seconds ago is
+  // effective from "now" and must show up immediately.
+  return useMemo(() => {
+    const t = new Date(Math.max(now.getTime(), Date.now()));
+    return {
+      regimen: data ? currentRegimen(data.regimens, t) : undefined,
+      slot: data && data.slots.length > 0 ? slotFor(t, data.slots) : undefined,
+    };
+  }, [data, now]);
 }

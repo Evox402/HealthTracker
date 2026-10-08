@@ -1,18 +1,21 @@
-import { Check, CloudDownload, Settings } from 'lucide-react';
+import { Check, ChevronDown, CloudDownload, MoreHorizontal, Plus, Settings } from 'lucide-react';
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ChangeCard } from '@/components/insights/ChangeCard';
-import { InsightCard } from '@/components/insights/InsightCard';
 import { Loading, Screen, SectionTitle } from '@/components/layout/Screen';
-import { buttonClass } from '@/components/ui/button';
+import { Button, buttonClass } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import { Chip } from '@/components/ui/chip';
+import { Field, parseNum } from '@/components/ui/field';
 import { StatusMark } from '@/components/ui/status';
 import { useAckedFlags } from '@/hooks/useAckedFlags';
-import { useAppData, useCurrent, useEngine, useNow } from '@/hooks/useAppData';
-import { dismissInsight, isDismissed } from '@/lib/actions';
+import { useAppData, useCurrent, useEngine, useNow, type AppData } from '@/hooks/useAppData';
+import { deleteDoses, recordDose } from '@/lib/actions';
 import { cn } from '@/lib/cn';
 import { db } from '@/lib/db';
 import { daysAgo, fmtAmount, fmtDay, fmtReading, fmtTime, fmtWeekdayTime, greeting, readingStatus, targetText } from '@/lib/format';
-import { dayKey, slotFor } from '@/lib/slots';
+import { dayKey } from '@/lib/slots';
+import { allTrackers, fmtSymptom, fmtSymptomShort, trackerPath, type Tracker } from '@/lib/trackers';
+import type { DoseEvent, RegimenItem, RegimenVersion, SlotDef } from '@/lib/types';
 import { RedFlagBanner } from './RedFlagBanner';
 
 export function TodayScreen() {
@@ -23,23 +26,10 @@ export function TodayScreen() {
   const [acked, ack] = useAckedFlags();
   if (!data || !result || !slot) return <Loading />;
 
-  const today = dayKey(now, data.slots);
-  const inSlot = (iso: string) => {
-    const d = new Date(iso);
-    return dayKey(d, data.slots) === today && slotFor(d, data.slots).id === slot.id;
-  };
-  const loggedTimes = [...data.readings, ...data.doseEvents].filter((x) => inSlot(x.takenAt)).map((x) => x.takenAt).sort();
-  const logged = loggedTimes.length > 0;
-  const nextSlot = data.slots[(data.slots.findIndex((s) => s.id === slot.id) + 1) % data.slots.length];
-  const target = logged ? nextSlot : slot;
-  const targetDoses = (regimen?.items ?? []).filter((i) => i.slotId === target.id);
-  const medName = (id: string) => data.medications.find((m) => m.id === id);
-
   const flags = result.redFlags.filter((f) => !acked.has(f.key));
-  const insights = result.insights.filter((i) => !isDismissed(data.appSettings, i.key, i.confidence));
-  const latestChange = [...result.changeEvaluations].reverse().find((c) => c.status !== 'insufficient_data');
   const backupAge = daysAgo(data.appSettings.lastBackupAt, now);
-  const needsBackup = data.readings.length > 0 && (backupAge === null || backupAge > 3);
+  const hasData = data.readings.length + data.symptomEntries.length + data.doseEvents.length > 0;
+  const needsBackup = hasData && (backupAge === null || backupAge > 3);
 
   return (
     <Screen
@@ -55,76 +45,17 @@ export function TodayScreen() {
         <RedFlagBanner key={f.key} flag={f} onAcknowledge={() => ack(f.key)} />
       ))}
 
-      <Card className="flex-row items-center justify-between gap-3">
-        <div className="flex min-w-0 flex-col gap-1">
-          {logged && (
-            <div className="flex items-center gap-1.5 text-[13px] font-bold text-[var(--gain)]">
-              <Check size={16} strokeWidth={2.6} aria-hidden /> {slot.name} logged at {fmtTime(new Date(loggedTimes[loggedTimes.length - 1]))}
-            </div>
-          )}
-          <div className="text-lg font-extrabold">{logged ? `Next: ${target.name} · ${target.defaultTime}` : `Now: ${slot.name}`}</div>
-          <div className="text-[13px] text-[var(--text-muted)]">
-            {targetDoses.length > 0
-              ? `${targetDoses.map((i) => `${medName(i.medicationId)?.name ?? '?'} ${fmtAmount(i.amount)} ${medName(i.medicationId)?.unit ?? ''}`).join(', ')} + vitals`
-              : 'Vitals and symptoms'}
-          </div>
-        </div>
-        <Link to={`/log/${target.id}`} className={cn(buttonClass('primary', 'md'), 'shrink-0 whitespace-nowrap no-underline')}>
-          Log now
-        </Link>
-      </Card>
+      <MedsToday data={data} regimen={regimen} slot={slot} now={now} />
 
-      {!regimen && (
-        <Card>
-          <div className="font-extrabold">No medication plan yet</div>
-          <p className="m-0 text-sm text-[var(--text-secondary)]">
-            Add your medications and when you take them, so the app can relate your readings to your doses.
-          </p>
-          <Link to="/regimen" className={cn(buttonClass('secondary', 'sm'), 'self-start no-underline')}>Set up regimen</Link>
-        </Card>
-      )}
-
-      <SectionTitle action={<Link to="/trends" className="text-sm font-bold text-[var(--accent-text)] no-underline">Trends</Link>}>
-        Latest values
+      <SectionTitle action={<Link to="/charts" className="text-sm font-bold text-[var(--accent-text)] no-underline">Charts</Link>}>
+        Trackers
       </SectionTitle>
       <div className="grid grid-cols-2 gap-3">
-        {data.parameters.filter((p) => !p.archived).map((p) => {
-          const r = [...data.readings].reverse().find((x) => x.parameterId === p.id);
-          const status = r ? readingStatus(p, r) : null;
-          return (
-            <Link
-              key={p.id}
-              to={`/trends/${p.id}`}
-              className={cn(
-                'flex flex-col gap-1.5 rounded-[20px] p-3.5 text-[var(--text-primary)] no-underline',
-                status === 'redflag' ? 'border-2 border-[var(--loss-strong)] bg-[var(--loss-subtle)]' : 'glass',
-              )}
-            >
-              <div className="flex justify-between gap-1 text-[13px] font-semibold text-[var(--text-muted)]">
-                <span className="truncate">{p.name}</span>
-                {status && <StatusMark status={status} short={status === 'in'} className="text-[12px]" />}
-              </div>
-              <div className="num text-[30px] leading-tight font-extrabold tracking-[-0.5px]">{r ? fmtReading(p, r) : '–'}</div>
-              <div className="text-xs text-[var(--text-muted)]">
-                {r ? `${p.unit} · ${dayKey(new Date(r.takenAt), data.slots) === today ? fmtTime(new Date(r.takenAt)) : fmtWeekdayTime(new Date(r.takenAt))}` : 'No reading yet'} · target {targetText(p)}
-              </div>
-            </Link>
-          );
-        })}
+        {allTrackers(data.parameters, data.symptoms).map((t) => (
+          <TrackerTile key={`${t.kind}:${t.id}`} tracker={t} data={data} now={now} />
+        ))}
       </div>
-
-      {(insights.length > 0 || latestChange) && (
-        <SectionTitle action={<Link to="/insights" className="text-sm font-bold text-[var(--accent-text)] no-underline">See all {insights.length}</Link>}>
-          Top insights
-        </SectionTitle>
-      )}
-      {insights.slice(0, 2).map((i) => (
-        <InsightCard key={i.key} insight={i} data={data} onDismiss={() => dismissInsight(db, i.key, i.confidence)} />
-      ))}
-      {latestChange && insights.length < 2 && <ChangeCard evaluation={latestChange} data={data} compact />}
-      {insights.length === 0 && !latestChange && data.readings.length > 0 && (
-        <p className="m-0 text-sm text-[var(--text-muted)]">No patterns yet. Keep logging: insights appear after a few readings per time of day.</p>
-      )}
+      <Link to="/settings#trackers" className="self-start text-sm font-bold text-[var(--accent-text)] no-underline">+ New tracker</Link>
 
       {needsBackup && (
         <Link to="/settings#backup" className="glass flex items-center gap-3 rounded-[18px] p-3.5 text-[var(--text-primary)] no-underline">
@@ -136,5 +67,215 @@ export function TodayScreen() {
         </Link>
       )}
     </Screen>
+  );
+}
+
+interface TrackerTileProps {
+  tracker: Tracker;
+  data: AppData;
+  now: Date;
+}
+
+/** Last value of one tracker. The tile opens its chart; "+" opens the log sheet. */
+function TrackerTile({ tracker, data, now }: TrackerTileProps) {
+  const when = (iso: string) => {
+    const d = new Date(iso);
+    return dayKey(d, data.slots) === dayKey(now, data.slots) ? fmtTime(d) : fmtWeekdayTime(d);
+  };
+  let value = '–';
+  let detail = 'Nothing logged yet';
+  let status: ReturnType<typeof readingStatus> | null = null;
+  let label = tracker.name;
+
+  if (tracker.kind === 'p') {
+    const r = [...data.readings].reverse().find((x) => x.parameterId === tracker.id);
+    const target = targetText(tracker.def);
+    if (r) {
+      value = fmtReading(tracker.def, r);
+      status = readingStatus(tracker.def, r);
+      detail = `${tracker.def.unit} · ${when(r.takenAt)}`;
+    }
+    if (target) detail += ` · target ${target}`;
+  } else {
+    const e = [...data.symptomEntries].reverse().find((x) => x.symptomId === tracker.id);
+    if (e) {
+      value = fmtSymptomShort(tracker.def, e);
+      detail = `${tracker.def.type === 'scale' ? '/10 · ' : tracker.def.type === 'stool' ? 'Bristol · ' : ''}${when(e.takenAt)}`;
+      if (tracker.def.type === 'scale' && e.score > tracker.def.threshold) status = 'above';
+      label = `${tracker.name}, last ${fmtSymptom(tracker.def, e)}`;
+    }
+  }
+
+  return (
+    <div className={cn('relative flex flex-col gap-1.5 rounded-[20px] p-3.5', status === 'redflag' ? 'border-2 border-[var(--loss-strong)] bg-[var(--loss-subtle)]' : 'glass')}>
+      <Link to={`/charts/${trackerPath(tracker)}`} aria-label={`${label}: open chart`} className="absolute inset-0 rounded-[20px]" />
+      <div className="flex items-start justify-between gap-1 pr-9 text-[13px] font-semibold text-[var(--text-muted)]">
+        <span className="truncate">{tracker.name}</span>
+      </div>
+      <div className="num flex items-baseline gap-1.5 text-[28px] leading-tight font-extrabold tracking-[-0.5px]">
+        {value}
+        {status && <StatusMark status={status} short={status === 'in'} className="text-[12px] tracking-normal" />}
+      </div>
+      <div className="text-xs text-[var(--text-muted)]">{detail}</div>
+      <Link
+        to={`/log/${trackerPath(tracker)}`}
+        aria-label={`Log ${tracker.name}`}
+        className="absolute top-2 right-2 flex size-10 items-center justify-center rounded-full bg-[var(--accent)] text-[var(--on-accent)]"
+      >
+        <Plus size={20} strokeWidth={2.6} aria-hidden />
+      </Link>
+    </div>
+  );
+}
+
+interface MedsTodayProps {
+  data: AppData;
+  regimen: RegimenVersion | undefined;
+  slot: SlotDef;
+  now: Date;
+}
+
+/** Checklist of the med stack: the current time of day first, the rest of today folded away. */
+function MedsToday({ data, regimen, slot, now }: MedsTodayProps) {
+  const [showAll, setShowAll] = useState(false);
+  const items = regimen?.items ?? [];
+  if (items.length === 0) {
+    return (
+      <Card>
+        <div className="font-extrabold">No medications yet</div>
+        <p className="m-0 text-sm text-[var(--text-secondary)]">Add your med stack to tick off doses as you take them.</p>
+        <Link to="/meds" className={cn(buttonClass('secondary', 'sm'), 'self-start no-underline')}>Set up med stack</Link>
+      </Card>
+    );
+  }
+
+  const today = dayKey(now, data.slots);
+  const recordsFor = (i: RegimenItem) =>
+    data.doseEvents.filter((d) => d.medicationId === i.medicationId && d.slotId === i.slotId && d.status !== 'extra' && dayKey(new Date(d.takenAt), data.slots) === today);
+  const slotItems = (s: SlotDef) => items.filter((i) => i.slotId === s.id && data.medications.some((m) => m.id === i.medicationId));
+  const current = slotItems(slot);
+  const others = data.slots.filter((s) => s.id !== slot.id && slotItems(s).length > 0);
+  const open = (s: SlotDef) => slotItems(s).filter((i) => recordsFor(i).length === 0);
+  const openOthers = others.reduce((n, s) => n + open(s).length, 0);
+
+  async function allTaken(s: SlotDef) {
+    for (const i of open(s)) {
+      await recordDose(db, { medicationId: i.medicationId, slotId: s.id, status: 'taken', plannedAmount: i.amount, takenAt: new Date().toISOString(), regimenVersionId: regimen?.id ?? null });
+    }
+  }
+
+  const slotBlock = (s: SlotDef) => (
+    <div key={s.id} className="flex flex-col gap-2">
+      <div className="flex items-center justify-between">
+        <h3 className="m-0 text-[15px] font-extrabold">{s.name}</h3>
+        {open(s).length > 1 && (
+          <Button variant="ghost" size="sm" onClick={() => void allTaken(s)}><Check size={16} aria-hidden /> All taken</Button>
+        )}
+      </div>
+      {slotItems(s).map((i) => (
+        <DoseRow key={i.medicationId} item={i} data={data} records={recordsFor(i)} regimenId={regimen?.id ?? null} />
+      ))}
+    </div>
+  );
+
+  return (
+    <Card>
+      <div className="flex items-baseline justify-between">
+        <h2 className="m-0 text-base font-extrabold">Medications</h2>
+        <Link to="/meds" className="text-sm font-bold text-[var(--accent-text)] no-underline">Edit stack</Link>
+      </div>
+      {current.length > 0 ? slotBlock(slot) : <p className="m-0 text-sm text-[var(--text-muted)]">Nothing planned for {slot.name.toLowerCase()}.</p>}
+      {others.length > 0 && (
+        <>
+          <button
+            type="button"
+            aria-expanded={showAll}
+            onClick={() => setShowAll((x) => !x)}
+            className="flex min-h-10 cursor-pointer items-center justify-between rounded-xl bg-transparent px-0 text-sm font-bold text-[var(--text-secondary)]"
+          >
+            <span>Other times today{openOthers > 0 ? ` · ${openOthers} open` : ' · all done'}</span>
+            <ChevronDown size={18} className={cn('transition-transform', showAll && 'rotate-180')} aria-hidden />
+          </button>
+          {showAll && others.map(slotBlock)}
+        </>
+      )}
+    </Card>
+  );
+}
+
+interface DoseRowProps {
+  item: RegimenItem;
+  data: AppData;
+  records: DoseEvent[];
+  regimenId: string | null;
+}
+
+/** One planned dose: tap the check to mark it taken (tap again to undo); "…" for skipped or another amount. */
+function DoseRow({ item, data, records, regimenId }: DoseRowProps) {
+  const [more, setMore] = useState(false);
+  const [amount, setAmount] = useState('');
+  const med = data.medications.find((m) => m.id === item.medicationId);
+  const record = records[records.length - 1];
+  const ids = records.map((r) => r.id);
+  const base = { medicationId: item.medicationId, slotId: item.slotId, plannedAmount: item.amount, regimenVersionId: regimenId };
+  const status = record?.status;
+  const taken = status === 'taken' || status === 'changed';
+
+  async function toggle() {
+    if (record) await deleteDoses(db, ids);
+    else await recordDose(db, { ...base, status: 'taken', takenAt: new Date().toISOString() });
+  }
+
+  const state = !record ? '' : status === 'skipped' ? 'Skipped' : status === 'changed' ? `Took ${fmtAmount(record.actualAmount)} ${med?.unit ?? ''}` : `Taken ${fmtTime(new Date(record.takenAt))}`;
+
+  return (
+    <div className="flex flex-col gap-2 rounded-2xl bg-[var(--surface-2)] p-2.5">
+      <div className="flex items-center gap-3">
+        <button
+          type="button"
+          aria-pressed={taken}
+          aria-label={`${med?.name ?? 'Medication'} ${fmtAmount(item.amount)} ${med?.unit ?? ''}: ${record ? `${state}, tap to undo` : 'mark as taken'}`}
+          onClick={() => void toggle()}
+          className={cn(
+            'flex size-11 shrink-0 cursor-pointer items-center justify-center rounded-full border-2',
+            taken ? 'border-[var(--gain)] bg-[var(--gain)] text-[#052e16]'
+              : status === 'skipped' ? 'border-[var(--warn)] bg-transparent text-[var(--warn)]'
+                : 'border-[var(--border-strong)] bg-transparent text-transparent',
+          )}
+        >
+          {status === 'skipped' ? <span className="text-lg font-extrabold" aria-hidden>–</span> : <Check size={22} strokeWidth={3} aria-hidden />}
+        </button>
+        <div className="flex min-w-0 grow flex-col">
+          <span className={cn('truncate text-[15px] font-extrabold', taken && 'text-[var(--text-secondary)]')}>{med?.name ?? 'Unknown medication'}</span>
+          <span className="num text-[13px] text-[var(--text-muted)]">
+            {fmtAmount(item.amount)} {med?.unit}{state ? ` · ${state}` : ''}
+          </span>
+        </div>
+        <Button variant="ghost" size="icon" aria-label={`More options for ${med?.name ?? 'medication'}`} aria-expanded={more} onClick={() => setMore((x) => !x)}>
+          <MoreHorizontal size={20} aria-hidden />
+        </Button>
+      </div>
+      {more && (
+        <div className="flex flex-col gap-2">
+          <div className="grid grid-cols-2 gap-1.5">
+            <Chip pressed={status === 'skipped'} className="rounded-xl" onClick={async () => {
+              await recordDose(db, { ...base, status: 'skipped', takenAt: new Date().toISOString() }, ids);
+              setMore(false);
+            }}>Skipped</Chip>
+            <Chip pressed={status === 'changed'} className="rounded-xl" onClick={() => setAmount(amount || fmtAmount(item.amount))}>Other amount</Chip>
+          </div>
+          {amount !== '' && (
+            <div className="grid grid-cols-[1fr_auto] items-end gap-2">
+              <Field label={`Amount taken (${med?.unit ?? ''})`} inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} />
+              <Button disabled={!Number.isFinite(parseNum(amount))} onClick={async () => {
+                await recordDose(db, { ...base, status: 'changed', actualAmount: parseNum(amount), takenAt: new Date().toISOString() }, ids);
+                setAmount('');
+                setMore(false);
+              }}>Save</Button>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
   );
 }

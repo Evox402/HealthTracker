@@ -1,4 +1,14 @@
-# PRD: MedicineAdjuster
+# PRD: MedicineAdjuster → Health Tracker
+
+## Pivot (8 Oct 2026)
+In daily use only the tracking was used, never the regimen/insights part. The app is now a **symptom & bio tracker** (display name "Health Tracker"; repo, URL and stored data unchanged):
+- **Med stack:** medications with amount per time of day, ticked off on Today (taken / skipped / other amount). No drug library, timing data or visible regimen history.
+- **Vitals:** blood pressure, pulse, weight. SpO₂ and respiratory rate are hidden by default (data kept).
+- **Custom trackers:** 0–10 scale (e.g. pain), stool (Bristol 1–7), number with unit, yes/no + note. Each is logged on its own, at any time, with an optional note.
+- **Charts** for every tracker, plus a simplified one-page doctor summary.
+- **Red flags stay**; the insights engine (patterns, change evaluation) is removed.
+
+The sections below describe the original MVP and are kept for history; `meta/SPEC.md` is the current source of truth.
 
 ## Overview
 MedicineAdjuster is a mobile-first, offline PWA for tracking vital parameters, symptoms and medication doses through the day. A transparent rules engine shows **when** readings leave their target range, **how that relates to dose timing**, and **whether regimen changes helped**. It turns these findings into discussion points for the care team. It is a personal "second look" at the data, not a prescriber.

@@ -1,13 +1,12 @@
 import { DEFAULT_PARAMETERS, DEFAULT_SLOTS, DEFAULT_SYMPTOMS } from '@/lib/defaults';
 import { slotFor } from '@/lib/slots';
 import type {
-  ContextTag, DoseEvent, DoseStatus, EngineSnapshot, Medication, Reading, RegimenItem, RegimenVersion, SymptomEntry,
+  ContextTag, DoseEvent, DoseStatus, DoseUnit, EngineSnapshot, Medication, ParameterDef, Reading, RegimenItem, RegimenVersion,
+  SlotDef, SymptomDef, SymptomEntry,
 } from '@/lib/types';
-import { DRUG_LIBRARY } from '../drugLibrary';
 
-// Snapshot builder for engine tests. Days are numbered from 1; times are local
-// 'HH:mm'. Medications are referenced by their library id, which doubles as the
-// medication id, so assertions can use readable ids.
+// Data builder for engine tests and the e2e demo backup. Days are numbered from
+// 1; times are local 'HH:mm'. Medication ids are readable names ('bisoprolol').
 
 type Item = [medicationId: string, slotId: string, amount: number];
 
@@ -20,8 +19,8 @@ export class Scenario {
   private readonly symptomEntries: SymptomEntry[] = [];
   private readonly doseEvents: DoseEvent[] = [];
   private seq = 0;
-  analysisWindowDays = 7;
-  excludeTags: ContextTag[] = ['after_activity'];
+  readonly parameters: ParameterDef[] = structuredClone(DEFAULT_PARAMETERS);
+  readonly symptoms: SymptomDef[] = structuredClone(DEFAULT_SYMPTOMS);
 
   constructor(firstDay = '2026-09-28') {
     const [y, m, d] = firstDay.split('-').map(Number);
@@ -47,12 +46,8 @@ export class Scenario {
     return this;
   }
 
-  /** Adds a library medication (id = library id) or a custom one when `custom` is given. */
-  med(id: string, custom?: Partial<Medication>): this {
-    const lib = DRUG_LIBRARY.find((d) => d.id === id);
-    this.medications.push({
-      id, name: lib?.name ?? id, libraryId: lib ? id : null, unit: lib?.typicalUnit ?? 'mg', archived: false, ...custom,
-    });
+  med(id: string, unit: DoseUnit = 'mg'): this {
+    this.medications.push({ id, name: id.charAt(0).toUpperCase() + id.slice(1), unit, archived: false });
     return this;
   }
 
@@ -81,9 +76,9 @@ export class Scenario {
     return this.reading(day, time, 'hr', { value }, tags);
   }
 
-  symptom(day: number, time: string, symptomId: string, score: number): string {
+  symptom(day: number, time: string, symptomId: string, score: number, note?: string): string {
     const id = this.id(`s-${symptomId}`);
-    this.symptomEntries.push({ id, symptomId, score, takenAt: this.iso(day, time) });
+    this.symptomEntries.push({ id, symptomId, score, takenAt: this.iso(day, time), ...(note ? { note } : {}) });
     return id;
   }
 
@@ -114,16 +109,22 @@ export class Scenario {
   build(): EngineSnapshot {
     return {
       now: this.nowIso,
-      parameters: structuredClone(DEFAULT_PARAMETERS),
-      symptoms: structuredClone(DEFAULT_SYMPTOMS),
-      slots: structuredClone(DEFAULT_SLOTS),
-      medications: this.medications,
-      drugLibrary: DRUG_LIBRARY,
-      regimens: [...this.regimens].sort((a, b) => a.effectiveFrom.localeCompare(b.effectiveFrom)),
+      parameters: this.parameters,
+      symptoms: this.symptoms,
       readings: this.readings,
       symptomEntries: this.symptomEntries,
-      doseEvents: this.doseEvents,
-      settings: { analysisWindowDays: this.analysisWindowDays, excludeTags: this.excludeTags },
+    };
+  }
+
+  /** Every table except settings, as stored in the database. */
+  data(): {
+    parameters: ParameterDef[]; symptoms: SymptomDef[]; slots: SlotDef[]; medications: Medication[]; regimens: RegimenVersion[];
+    readings: Reading[]; symptomEntries: SymptomEntry[]; doseEvents: DoseEvent[];
+  } {
+    return {
+      parameters: this.parameters, symptoms: this.symptoms, slots: structuredClone(DEFAULT_SLOTS), medications: this.medications,
+      regimens: [...this.regimens].sort((a, b) => a.effectiveFrom.localeCompare(b.effectiveFrom)),
+      readings: this.readings, symptomEntries: this.symptomEntries, doseEvents: this.doseEvents,
     };
   }
 }

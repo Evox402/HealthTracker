@@ -2,6 +2,7 @@ import type { RangeStatus } from '@/lib/format';
 import { cn } from '@/lib/cn';
 
 const STATUS: Record<RangeStatus, { mark: string; label: string; cls: string }> = {
+  none: { mark: '', label: '', cls: 'text-[var(--text-secondary)]' },
   in: { mark: '✓', label: 'In range', cls: 'text-[var(--gain)]' },
   above: { mark: '▲', label: 'Above', cls: 'text-[var(--warn)]' },
   below: { mark: '▼', label: 'Below', cls: 'text-[var(--warn)]' },
@@ -17,6 +18,7 @@ export interface StatusMarkProps {
 /** Range status as symbol + text, never colour alone. */
 export function StatusMark({ status, short, className }: StatusMarkProps) {
   const s = STATUS[status];
+  if (status === 'none') return null;
   return (
     <span className={cn('font-bold', s.cls, className)}>
       {s.mark}

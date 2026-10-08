@@ -1,10 +1,9 @@
 import { ArrowLeft, Download, Upload } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { Loading, Screen, SectionTitle } from '@/components/layout/Screen';
 import { Button, buttonClass } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { Chip } from '@/components/ui/chip';
 import { Field, parseNum } from '@/components/ui/field';
 import { Segmented } from '@/components/ui/segmented';
 import { useToast } from '@/components/ui/toast';
@@ -14,12 +13,12 @@ import { backupCounts, createBackup, downloadBackup, parseBackup, restoreBackup,
 import { db } from '@/lib/db';
 import { daysAgo } from '@/lib/format';
 import type { AppSettings, SlotDef } from '@/lib/types';
-import { TargetsEditor } from './TargetsEditor';
+import { TrackersSection } from './TrackersSection';
 
 export function SettingsScreen() {
   const data = useAppData();
-  const toast = useToast();
-  const [section, setSection] = useState<'targets' | 'general'>('general');
+  const { hash } = useLocation();
+  const [section, setSection] = useState<'trackers' | 'general'>(hash === '#trackers' ? 'trackers' : 'general');
   if (!data) return <Loading />;
   const s = data.appSettings;
 
@@ -29,31 +28,14 @@ export function SettingsScreen() {
       action={<Link to="/" aria-label="Back to Today" className={buttonClass('secondary', 'icon')}><ArrowLeft size={20} aria-hidden /></Link>}
     >
       <Segmented label="Section" value={section} onChange={setSection}
-        options={[{ value: 'general', label: 'General' }, { value: 'targets', label: 'Targets & red flags' }]} />
+        options={[{ value: 'general', label: 'General' }, { value: 'trackers', label: 'Trackers' }]} />
 
-      {section === 'targets' ? (
-        <TargetsEditor parameters={data.parameters} symptoms={data.symptoms} showRedFlags onSaved={() => toast({ message: 'Targets saved' })} />
+      {section === 'trackers' ? (
+        <TrackersSection parameters={data.parameters} symptoms={data.symptoms} />
       ) : (
         <>
           <BackupSection settings={s} />
           <SlotsEditor slots={data.slots} />
-
-          <SectionTitle>Analysis</SectionTitle>
-          <Card>
-            <label className="flex items-center justify-between gap-3 text-[15px] font-bold">
-              Leave readings after activity out of patterns
-              <input type="checkbox" className="size-6 accent-[var(--accent)]" checked={s.excludeTags.includes('after_activity')}
-                onChange={(e) => updateSettings(db, { excludeTags: e.target.checked ? ['after_activity'] : [] })} />
-            </label>
-            <div className="flex flex-col gap-2">
-              <span className="text-[13px] font-bold text-[var(--text-secondary)]">Look back for patterns</span>
-              <div className="flex gap-2">
-                {[3, 7, 14].map((d) => (
-                  <Chip key={d} pressed={s.analysisWindowDays === d} onClick={() => updateSettings(db, { analysisWindowDays: d })}>{d} days</Chip>
-                ))}
-              </div>
-            </div>
-          </Card>
 
           <SectionTitle>Appearance</SectionTitle>
           <Segmented<AppSettings['theme']> label="Theme" value={s.theme} onChange={(theme) => updateSettings(db, { theme })}
@@ -62,8 +44,8 @@ export function SettingsScreen() {
           <SectionTitle>About</SectionTitle>
           <Card>
             <p className="m-0 text-sm leading-relaxed text-[var(--text-secondary)]">
-              Not medical advice. Never change your medication without your care team. Patterns are rule-based summaries of your own
-              measurements; drug timing values are approximate. All data stays on this device.
+              Not medical advice. Never change your medication without your care team. Red flags only compare values with the limits
+              you entered. All data stays on this device.
             </p>
             <Link to="/doctor" className="text-sm font-bold text-[var(--accent-text)] no-underline">Open doctor view / print summary</Link>
             <StorageStatus />
@@ -107,7 +89,7 @@ function BackupSection({ settings }: BackupSectionProps) {
 
   async function confirmRestore() {
     if (!pending) return;
-    downloadBackup(await createBackup(db), `medicine-adjuster-before-restore-${Date.now()}.json`);
+    downloadBackup(await createBackup(db), `health-tracker-before-restore-${Date.now()}.json`);
     await restoreBackup(db, pending);
     setPending(null);
     toast({ message: 'Backup restored' });
@@ -133,7 +115,7 @@ function BackupSection({ settings }: BackupSectionProps) {
           <div className="flex flex-col gap-2 rounded-2xl border border-[var(--warn)] p-3">
             <p className="m-0 text-sm">
               Backup from {new Date(pending.exportedAt).toLocaleString()}: {counts.readings} readings, {counts.symptomEntries} symptom entries,{' '}
-              {counts.doseEvents} doses, {counts.medications} medications, {counts.regimens} regimen versions.
+              {counts.doseEvents} doses, {counts.medications} medications.
             </p>
             <p className="m-0 text-sm font-bold text-[var(--warn)]">This replaces everything on this phone. A copy of the current data is downloaded first.</p>
             <div className="grid grid-cols-2 gap-2.5">

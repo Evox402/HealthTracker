@@ -1,16 +1,14 @@
 import { useEffect, useState } from 'react';
 import { HashRouter, Navigate, Route, Routes, useLocation } from 'react-router-dom';
+import { ChartsScreen } from '@/components/charts/ChartsScreen';
 import { DoctorView } from '@/components/doctor/DoctorView';
-import { InsightsScreen } from '@/components/insights/InsightsScreen';
 import { BottomNav } from '@/components/layout/BottomNav';
 import { Loading } from '@/components/layout/Screen';
-import { QuickLogScreen } from '@/components/log/QuickLogScreen';
-import { MedicationsScreen } from '@/components/medications/MedicationsScreen';
+import { LogSheet } from '@/components/log/LogSheet';
+import { MedsScreen } from '@/components/meds/MedsScreen';
 import { Welcome } from '@/components/onboarding/Welcome';
-import { RegimenScreen } from '@/components/regimen/RegimenScreen';
 import { SettingsScreen } from '@/components/settings/SettingsScreen';
 import { TodayScreen } from '@/components/today/TodayScreen';
-import { TrendsScreen } from '@/components/trends/TrendsScreen';
 import { ToastProvider } from '@/components/ui/toast';
 import { useSettings } from '@/hooks/useAppData';
 import { db } from '@/lib/db';
@@ -38,11 +36,9 @@ function Shell() {
     <>
       <Routes>
         <Route path="/" element={<TodayScreen />} />
-        <Route path="/log/:slotId?" element={<QuickLogScreen />} />
-        <Route path="/trends/:parameterId?" element={<TrendsScreen />} />
-        <Route path="/insights" element={<InsightsScreen />} />
-        <Route path="/regimen" element={<RegimenScreen />} />
-        <Route path="/medications" element={<MedicationsScreen />} />
+        <Route path="/log/:kind/:id" element={<LogSheet />} />
+        <Route path="/charts/:kind?/:id?" element={<ChartsScreen />} />
+        <Route path="/meds" element={<MedsScreen />} />
         <Route path="/settings" element={<SettingsScreen />} />
         <Route path="/doctor" element={<DoctorView />} />
         <Route path="*" element={<Navigate to="/" replace />} />

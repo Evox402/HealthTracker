@@ -1,4 +1,5 @@
 import Dexie, { type Table } from 'dexie';
+import { upgradeParameters, upgradeSymptoms } from './migrate';
 import type {
   AppSettings, DoseEvent, Medication, ParameterDef, Reading, RegimenVersion, SlotDef, SymptomDef, SymptomEntry,
 } from './types';
@@ -29,6 +30,13 @@ export class AppDB extends Dexie {
       symptomEntries: 'id, symptomId, takenAt',
       doseEvents: 'id, medicationId, takenAt, slotId',
       settings: 'id',
+    });
+    // v2: tracker pivot. Symptoms get a type, weight is added, SpO₂/RR archived.
+    this.version(2).stores({}).upgrade(async (tx) => {
+      const parameters = tx.table<ParameterDef, string>('parameters');
+      const symptoms = tx.table<SymptomDef, string>('symptoms');
+      await parameters.bulkPut(upgradeParameters(await parameters.toArray()));
+      await symptoms.bulkPut(upgradeSymptoms(await symptoms.toArray()));
     });
   }
 

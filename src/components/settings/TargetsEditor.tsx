@@ -36,7 +36,7 @@ function initial(parameters: ParameterDef[], symptoms: SymptomDef[]): Draft {
   return d;
 }
 
-/** Target ranges (and optionally red-flag limits) per parameter, thresholds per symptom. */
+/** Target ranges (and optionally red-flag limits) per number tracker, thresholds per 0–10 tracker. Empty = none. */
 export function TargetsEditor({ parameters, symptoms, showRedFlags, saveLabel = 'Save targets', onSaved }: TargetsEditorProps) {
   const [draft, setDraft] = useState<Draft>(() => initial(parameters, symptoms));
   const [error, setError] = useState<string | null>(null);
@@ -48,16 +48,16 @@ export function TargetsEditor({ parameters, symptoms, showRedFlags, saveLabel = 
       ...p,
       components: p.components.map((c) => ({
         ...c,
-        targetMin: parseNum(draft[key(p.id, c.key, 'min')]),
-        targetMax: parseNum(draft[key(p.id, c.key, 'max')]),
+        targetMin: opt(key(p.id, c.key, 'min')),
+        targetMax: opt(key(p.id, c.key, 'max')),
         redFlagMin: opt(key(p.id, c.key, 'rfMin')),
         redFlagMax: opt(key(p.id, c.key, 'rfMax')),
       })),
     }));
     for (const p of nextParams) {
       for (const c of p.components) {
-        if (!Number.isFinite(c.targetMin) || !Number.isFinite(c.targetMax) || c.targetMin >= c.targetMax) {
-          setError(`${componentLabel(p, c)}: enter a minimum below the maximum.`);
+        if (c.targetMin !== undefined && c.targetMax !== undefined && c.targetMin >= c.targetMax) {
+          setError(`${componentLabel(p, c)}: enter a minimum below the maximum, or leave one empty.`);
           return;
         }
       }
@@ -85,8 +85,8 @@ export function TargetsEditor({ parameters, symptoms, showRedFlags, saveLabel = 
             <div key={c.key} className="flex flex-col gap-2">
               {p.components.length > 1 && <div className="text-sm font-bold text-[var(--text-secondary)]">{c.label}</div>}
               <div className="grid grid-cols-2 gap-2.5">
-                <Field label="Target min" inputMode="decimal" value={draft[key(p.id, c.key, 'min')]} onChange={(e) => set(key(p.id, c.key, 'min'), e.target.value)} />
-                <Field label="Target max" inputMode="decimal" value={draft[key(p.id, c.key, 'max')]} onChange={(e) => set(key(p.id, c.key, 'max'), e.target.value)} />
+                <Field label="Target min" inputMode="decimal" placeholder="none" value={draft[key(p.id, c.key, 'min')]} onChange={(e) => set(key(p.id, c.key, 'min'), e.target.value)} />
+                <Field label="Target max" inputMode="decimal" placeholder="none" value={draft[key(p.id, c.key, 'max')]} onChange={(e) => set(key(p.id, c.key, 'max'), e.target.value)} />
                 {showRedFlags && (
                   <>
                     <Field label="Red flag at or below" inputMode="decimal" placeholder="none" value={draft[key(p.id, c.key, 'rfMin')]} onChange={(e) => set(key(p.id, c.key, 'rfMin'), e.target.value)} />
@@ -98,7 +98,7 @@ export function TargetsEditor({ parameters, symptoms, showRedFlags, saveLabel = 
           ))}
         </Card>
       ))}
-      <Card>
+      {symptoms.length > 0 && <Card>
         <h3 className="m-0 text-base font-extrabold">Symptoms <span className="font-semibold text-[var(--text-muted)]">· 0–10</span></h3>
         <p className="m-0 text-[13px] text-[var(--text-muted)]">A score above the threshold counts as a symptom worth noting.</p>
         {symptoms.map((s) => (
@@ -110,7 +110,7 @@ export function TargetsEditor({ parameters, symptoms, showRedFlags, saveLabel = 
             ) : <span />}
           </div>
         ))}
-      </Card>
+      </Card>}
       {error && <p role="alert" className="m-0 font-bold text-[var(--warn)]">{error}</p>}
       <Button size="lg" onClick={save}>{saveLabel}</Button>
     </div>
