@@ -10,6 +10,12 @@ async function onboard(page: Page) {
   await expect(page.getByRole('heading', { name: 'Trackers' })).toBeVisible();
 }
 
+/** Opens the log sheet of a tracker from Today and waits until it is ready. */
+async function openLog(page: Page, name: string) {
+  await page.getByRole('link', { name: `Log ${name}`, exact: true }).click();
+  await expect(page.getByRole('heading', { name, exact: true })).toBeVisible();
+}
+
 async function restore(page: Page, backup: unknown) {
   await page.getByRole('link', { name: 'Settings' }).click();
   await page.getByLabel('Backup file').setInputFiles({
@@ -37,17 +43,18 @@ test('first launch: disclaimer, optional targets, then Today', async ({ page }) 
 
 test('log blood pressure and weight from Today, with undo', async ({ page }) => {
   await onboard(page);
-  await page.getByRole('link', { name: 'Log Blood pressure', exact: true }).click();
+  await openLog(page, 'Blood pressure');
+  await expect(page.getByLabel('Systolic', { exact: true })).toBeFocused();
   // Auto-advance moves the cursor from systolic to diastolic.
   await page.keyboard.type('128');
   await page.keyboard.type('78');
-  await expect(page.getByLabel('Diastolic')).toHaveValue('78');
+  await expect(page.getByLabel('Diastolic', { exact: true })).toHaveValue('78');
   await page.getByRole('button', { name: 'Save Blood pressure' }).click();
   await expect(page.getByText('Blood pressure saved')).toBeVisible();
   await expect(page.getByRole('link', { name: /^Blood pressure: open chart/ }).locator('..')).toContainText('128/78');
 
-  await page.getByRole('link', { name: 'Log Weight', exact: true }).click();
-  await page.getByLabel('Weight').fill('82,4');
+  await openLog(page, 'Weight');
+  await page.getByLabel('Weight', { exact: true }).fill('82,4');
   await page.getByLabel('Note (optional)').fill('before breakfast');
   await page.getByRole('button', { name: 'Save Weight' }).click();
   await expect(page.getByText('Weight saved')).toBeVisible();
@@ -57,8 +64,8 @@ test('log blood pressure and weight from Today, with undo', async ({ page }) => 
 
 test('a dangerous value shows the red-flag banner first', async ({ page }) => {
   await onboard(page);
-  await page.getByRole('link', { name: 'Log Heart rate', exact: true }).click();
-  await page.getByLabel('Heart rate').fill('41');
+  await openLog(page, 'Heart rate');
+  await page.getByLabel('Heart rate', { exact: true }).fill('41');
   await page.getByRole('button', { name: 'Save Heart rate' }).click();
   const banner = page.getByRole('alert').filter({ hasText: 'Heart rate 41 bpm' });
   await expect(banner).toContainText('Contact your care team now');
@@ -68,8 +75,8 @@ test('a dangerous value shows the red-flag banner first', async ({ page }) => {
 
 test('unusual values need a second tap', async ({ page }) => {
   await onboard(page);
-  await page.getByRole('link', { name: 'Log Heart rate', exact: true }).click();
-  await page.getByLabel('Heart rate').fill('720');
+  await openLog(page, 'Heart rate');
+  await page.getByLabel('Heart rate', { exact: true }).fill('720');
   await expect(page.getByText('Check value')).toBeVisible();
   await page.getByRole('button', { name: 'Save Heart rate' }).click();
   await expect(page.getByText(/looks unusual/)).toBeVisible();
@@ -87,7 +94,7 @@ test('create a custom tracker, log it and see it in Charts', async ({ page }) =>
   await expect(page.getByText('Night stool added')).toBeVisible();
   await page.getByRole('link', { name: 'Back to Today' }).click();
 
-  await page.getByRole('link', { name: 'Log Night stool', exact: true }).click();
+  await openLog(page, 'Night stool');
   await page.getByRole('button', { name: 'Save Night stool' }).click();
   await expect(page.getByText('Choose a type first.')).toBeVisible();
   await page.getByRole('radio', { name: /^Type 4: Smooth/ }).click();
