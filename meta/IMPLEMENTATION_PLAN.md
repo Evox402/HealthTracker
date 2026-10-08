@@ -72,3 +72,16 @@ Pure TypeScript in `src/engine/`, no UI dependency.
 - Engine changes always start with a failing test in `src/engine/__tests__/`.
 - Any text shown as an insight goes through `engine/text.ts`, and the no-prescribing test must stay green.
 - Small commits per checkbox; CI (typecheck + test + build) must pass before a deploy.
+
+---
+
+## Phase 7 — Pivot to a symptom & bio tracker (8 Oct)
+Only the tracking was used in practice, so the regimen/insights part was removed (see the PRD "Pivot" section and SPEC).
+- [x] Types + Dexie v2 upgrade (`lib/migrate.ts`): symptom types, weight added, SpO₂/RR archived, nothing deleted. Backup schema 2; v1 files upgraded on import.
+- [x] Engine reduced to red flags (tests first), dead engine code deleted.
+- [x] Today: med checklist (taken / skipped / other amount) + tracker tiles. Log sheet per tracker with note.
+- [x] Meds screen (simple stack), Charts screen (TrendChart + EventChart), Settings → Trackers (show/hide, new tracker, targets).
+- [x] Doctor view simplified; display name "Health Tracker" (repo, URL, DB name unchanged).
+- [x] e2e rewritten, incl. restoring a v1 backup.
+- [ ] e2e green in CI (couldn't run locally: WSL lacks Chromium system libraries).
+- [ ] On the phone: export a backup, install the update, check the old data is still there.

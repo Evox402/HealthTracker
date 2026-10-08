@@ -1,4 +1,4 @@
-// Typo guards for Quick Log (meta/SPEC.md §7). Values outside these bounds show
+// Typo guards for the log sheet (meta/SPEC.md §7). Values outside these bounds show
 // "Check value" and need a confirmation, but are never blocked.
 
 export const PLAUSIBLE: Record<string, [number, number]> = {
@@ -7,6 +7,7 @@ export const PLAUSIBLE: Record<string, [number, number]> = {
   'hr.value': [25, 250],
   'spo2.value': [50, 100],
   'rr.value': [4, 60],
+  'weight.value': [20, 400],
 };
 
 export function isPlausible(parameterId: string, component: string, value: number): boolean {
@@ -21,6 +22,7 @@ export function autoAdvanceDigits(parameterId: string, component: string, raw: s
   const value = Number(digits);
   const key = `${parameterId}.${component}`;
   if (key === 'spo2.value' || key === 'rr.value') return digits.length >= 2;
+  if (key !== 'bp.sys' && key !== 'bp.dia' && key !== 'hr.value') return false; // weight, custom: no fixed length
   // BP and HR: 3 digits, or 2 digits that can't be the start of a 3-digit value
   // (e.g. "72" or "95" advance; "12" waits for "120").
   return digits.length >= 3 || (digits.length === 2 && value >= 30);

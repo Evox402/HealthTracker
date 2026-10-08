@@ -30,26 +30,41 @@ export function daysAgo(iso: string | null, now: Date): number | null {
 
 /** "126/78" for BP, "72" otherwise. */
 export function fmtReading(p: ParameterDef, r: Reading): string {
-  return p.components.map((c) => (r.values[c.key] === undefined ? '–' : String(r.values[c.key]))).join('/');
+  return p.components.map((c) => (r.values[c.key] === undefined ? '–' : fmtValue(r.values[c.key], p.decimals))).join('/');
 }
 
-export function targetText(p: ParameterDef): string {
-  return p.components.map((c) => `${c.targetMin}–${c.targetMax}`).join(' / ');
+export const fmtValue = (v: number, decimals = 0) => String(Number(v.toFixed(decimals)));
+
+export const hasTarget = (c: ParameterComponent) => c.targetMin !== undefined || c.targetMax !== undefined;
+
+/** "100–130 / 60–80", "≥ 94", or null when no component has a target. */
+export function targetText(p: ParameterDef): string | null {
+  if (!p.components.some(hasTarget)) return null;
+  return p.components.map(componentTargetText).join(' / ');
 }
 
-export type RangeStatus = 'in' | 'above' | 'below' | 'redflag';
+export function componentTargetText(c: ParameterComponent): string {
+  if (c.targetMin !== undefined && c.targetMax !== undefined) return `${c.targetMin}–${c.targetMax}`;
+  if (c.targetMin !== undefined) return `≥ ${c.targetMin}`;
+  if (c.targetMax !== undefined) return `≤ ${c.targetMax}`;
+  return '–';
+}
+
+/** 'none': the component has no target, so the value has no range status. */
+export type RangeStatus = 'none' | 'in' | 'above' | 'below' | 'redflag';
 
 export function componentStatus(c: ParameterComponent, v: number): RangeStatus {
   if ((c.redFlagMin !== undefined && v <= c.redFlagMin) || (c.redFlagMax !== undefined && v >= c.redFlagMax)) return 'redflag';
-  if (v < c.targetMin) return 'below';
-  if (v > c.targetMax) return 'above';
+  if (!hasTarget(c)) return 'none';
+  if (c.targetMin !== undefined && v < c.targetMin) return 'below';
+  if (c.targetMax !== undefined && v > c.targetMax) return 'above';
   return 'in';
 }
 
 /** Worst status over all components of a reading. */
 export function readingStatus(p: ParameterDef, r: Reading): RangeStatus {
-  const order: RangeStatus[] = ['in', 'below', 'above', 'redflag'];
-  let worst: RangeStatus = 'in';
+  const order: RangeStatus[] = ['none', 'in', 'below', 'above', 'redflag'];
+  let worst: RangeStatus = 'none';
   for (const c of p.components) {
     const v = r.values[c.key];
     if (v === undefined) continue;
@@ -57,11 +72,6 @@ export function readingStatus(p: ParameterDef, r: Reading): RangeStatus {
     if (order.indexOf(s) > order.indexOf(worst)) worst = s;
   }
   return worst;
-}
-
-/** "Fri 07:05" relative label used in evidence lists. */
-export function shortWhen(iso: string): string {
-  return fmtWeekdayTime(new Date(iso));
 }
 
 /** "2026-10-02T08:30" for <input type="datetime-local">. */

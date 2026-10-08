@@ -1,34 +1,43 @@
-import type { RedFlag } from '@/lib/types';
-import { DAY, type Ctx } from './preprocess';
+import type { EngineSnapshot, RedFlag } from '@/lib/types';
 import { redFlagReading, redFlagSymptom } from './text';
 
-// R0 (meta/SPEC.md §5.4): dangerous values in the last 24 h. Applies to every
-// reading, including ones tagged for exclusion from patterns.
+// R0 (meta/SPEC.md §5): dangerous values in the last 24 h, from non-archived
+// parameters with red-flag limits and from 'scale' symptoms with redFlagAt.
 
-export function redFlags(ctx: Ctx): RedFlag[] {
-  const since = ctx.now - DAY;
+const DAY = 86_400_000;
+
+export function redFlags(snap: EngineSnapshot): RedFlag[] {
+  const now = Date.parse(snap.now);
+  const since = now - DAY;
+  const recent = (iso: string) => {
+    const t = Date.parse(iso);
+    return t >= since && t <= now;
+  };
   const flags: (RedFlag & { t: number; order: number })[] = [];
 
-  for (const p of ctx.points) {
-    if (p.at < since) continue;
-    const { redFlagMin, redFlagMax } = p.component;
-    let wording: ReturnType<typeof redFlagReading> | null = null;
-    if (redFlagMin !== undefined && p.value <= redFlagMin) wording = redFlagReading(p.parameter, p.component, p.value, 'below', redFlagMin);
-    else if (redFlagMax !== undefined && p.value >= redFlagMax) wording = redFlagReading(p.parameter, p.component, p.value, 'above', redFlagMax);
-    if (wording) {
-      flags.push({
-        key: `rf:${p.readingId}:${p.component.key}`, source: 'reading', refId: p.readingId,
-        ...wording, at: new Date(p.at).toISOString(), t: p.at, order: p.parameter.components.indexOf(p.component),
-      });
-    }
+  const params = new Map(snap.parameters.filter((p) => !p.archived).map((p) => [p.id, p]));
+  for (const r of snap.readings) {
+    const p = params.get(r.parameterId);
+    if (!p || !recent(r.takenAt)) continue;
+    p.components.forEach((c, order) => {
+      const value = r.values[c.key];
+      if (value === undefined) return;
+      let wording: ReturnType<typeof redFlagReading> | null = null;
+      if (c.redFlagMin !== undefined && value <= c.redFlagMin) wording = redFlagReading(p, c, value, 'below', c.redFlagMin);
+      else if (c.redFlagMax !== undefined && value >= c.redFlagMax) wording = redFlagReading(p, c, value, 'above', c.redFlagMax);
+      if (wording) {
+        flags.push({ key: `rf:${r.id}:${c.key}`, source: 'reading', refId: r.id, ...wording, at: r.takenAt, t: Date.parse(r.takenAt), order });
+      }
+    });
   }
 
-  for (const s of ctx.symptomPoints) {
-    const limit = s.symptom.redFlagAt;
-    if (s.at < since || limit === undefined || s.entry.score < limit) continue;
+  const symptoms = new Map(snap.symptoms.filter((s) => !s.archived && s.type === 'scale').map((s) => [s.id, s]));
+  for (const e of snap.symptomEntries) {
+    const s = symptoms.get(e.symptomId);
+    if (!s || s.redFlagAt === undefined || !recent(e.takenAt) || e.score < s.redFlagAt) continue;
     flags.push({
-      key: `rf:${s.entry.id}`, source: 'symptom', refId: s.entry.id,
-      ...redFlagSymptom(s.symptom.name, s.entry.score, limit), at: new Date(s.at).toISOString(), t: s.at, order: 100,
+      key: `rf:${e.id}`, source: 'symptom', refId: e.id,
+      ...redFlagSymptom(s.name, e.score, s.redFlagAt), at: e.takenAt, t: Date.parse(e.takenAt), order: 100,
     });
   }
 

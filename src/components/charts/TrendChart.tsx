@@ -1,11 +1,11 @@
 import { cn } from '@/lib/cn';
-import { fmtWeekdayTime } from '@/lib/format';
+import { fmtWeekdayTime, type RangeStatus } from '@/lib/format';
 
 export interface ChartPoint {
   id: string;
   at: number;
   value: number;
-  status: 'in' | 'above' | 'below' | 'redflag';
+  status: RangeStatus;
   muted?: boolean;
 }
 
@@ -16,7 +16,10 @@ export interface ChartMarker {
 
 export interface TrendChartProps {
   points: ChartPoint[];
-  band: [number, number];
+  /** Shaded target band; omitted when the tracker has no target. */
+  band?: [number, number];
+  /** Fixed y range (scales, Bristol types); otherwise fitted to the data and band. */
+  domain?: [number, number];
   from: number;
   to: number;
   markers?: ChartMarker[];
@@ -34,28 +37,43 @@ const DAY = 86_400_000;
 const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
 const FILL: Record<ChartPoint['status'], string> = {
+  none: 'fill-[var(--accent)]',
   in: 'fill-[var(--gain)]',
   above: 'fill-[var(--warn)]',
   below: 'fill-[var(--warn)]',
   redflag: 'fill-[var(--loss-strong)]',
 };
 const PRINT_FILL: Record<ChartPoint['status'], string> = {
+  none: 'fill-[#0f766e]',
   in: 'fill-[#15803d]',
   above: 'fill-[#b45309]',
   below: 'fill-[#b45309]',
   redflag: 'fill-[#b91c1c]',
 };
 
-/** Hand-written SVG line/dot chart with a shaded target band and regimen-change markers. */
+const STATUS_TEXT: Record<ChartPoint['status'], string> = {
+  none: '', in: ', in range', above: ', above range', below: ', below range', redflag: ', red flag',
+};
+
+/** y range: fixed domain, or data + band with some headroom. */
+function yRange(values: number[], band?: [number, number], domain?: [number, number]): [number, number] {
+  if (domain) return domain;
+  const all = band ? [...values, ...band] : values;
+  if (all.length === 0) return [0, 1];
+  const min = Math.min(...all);
+  const max = Math.max(...all);
+  const pad = Math.max((max - min) * 0.25, Math.abs(max) * 0.02, 1);
+  return [Math.floor(min - pad), Math.ceil(max + pad)];
+}
+
+/** Hand-written SVG line/dot chart with an optional shaded target band and markers. */
 export function TrendChart({
-  points, band, from, to, markers = [], selectedId, onSelect, print, width = W, height = 200, label,
+  points, band, domain, from, to, markers = [], selectedId, onSelect, print, width = W, height = 200, label,
 }: TrendChartProps) {
   const padL = 30;
   const padR = 8;
   const plotH = height - 22;
-  const values = points.map((p) => p.value);
-  const lo = Math.floor(Math.min(band[0], ...values) - (band[1] - band[0]) * 0.25);
-  const hi = Math.ceil(Math.max(band[1], ...values) + (band[1] - band[0]) * 0.25);
+  const [lo, hi] = yRange(points.map((p) => p.value), band, domain);
   const span = Math.max(1, to - from);
   const x = (t: number) => padL + ((t - from) / span) * (width - padL - padR);
   const y = (v: number) => ((hi - v) / Math.max(1, hi - lo)) * plotH;
@@ -73,10 +91,12 @@ export function TrendChart({
 
   return (
     <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label={label} className="h-auto w-full overflow-visible">
-      <rect x={padL - 6} y={y(band[1])} width={width - padL - padR + 12} height={Math.max(0, y(band[0]) - y(band[1]))} rx={6}
-        className={print ? 'fill-[#0d9488]/15' : 'fill-[var(--band)]'} />
-      {[band[0], band[1]].map((v) => (
-        <text key={v} x={0} y={y(v) + 4} fontSize={11} className={textCls}>{v}</text>
+      {band && (
+        <rect x={padL - 6} y={y(band[1])} width={width - padL - padR + 12} height={Math.max(0, y(band[0]) - y(band[1]))} rx={6}
+          className={print ? 'fill-[#0d9488]/15' : 'fill-[var(--band)]'} />
+      )}
+      {[...new Set(band ?? [lo, hi])].map((v) => (
+        <text key={v} x={0} y={Math.min(plotH, Math.max(10, y(v) + 4))} fontSize={11} className={textCls}>{v}</text>
       ))}
       {ticks.map((t) => (
         <g key={t}>
@@ -96,7 +116,7 @@ export function TrendChart({
       {sorted.map((p) => {
         const selected = p.id === selectedId;
         const common = { cx: x(p.at), cy: y(p.value) };
-        const desc = `${p.value} at ${fmtWeekdayTime(new Date(p.at))}, ${p.status === 'in' ? 'in range' : p.status === 'redflag' ? 'red flag' : `${p.status} range`}`;
+        const desc = `${p.value} at ${fmtWeekdayTime(new Date(p.at))}${STATUS_TEXT[p.status]}`;
         return onSelect ? (
           <g key={p.id} role="button" tabIndex={0} aria-label={desc} aria-pressed={selected}
             onClick={() => onSelect(p.id)} onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && onSelect(p.id)} className="cursor-pointer outline-none">

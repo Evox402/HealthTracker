@@ -7,13 +7,13 @@ export type ISODateTime = string; // new Date().toISOString()
 export interface ParameterComponent {
   key: string;            // 'value' for single-value params; 'sys' | 'dia' for BP
   label: string;          // 'Systolic'
-  targetMin: number;
-  targetMax: number;
+  targetMin?: number;     // no target → no band and no status
+  targetMax?: number;
   redFlagMin?: number;    // at or below → red flag
   redFlagMax?: number;    // at or above → red flag
 }
 
-export type ParameterKind = 'bp' | 'hr' | 'spo2' | 'rr' | 'custom';
+export type ParameterKind = 'bp' | 'hr' | 'spo2' | 'rr' | 'weight' | 'custom';
 
 export interface ParameterDef {
   id: ID;
@@ -26,11 +26,15 @@ export interface ParameterDef {
   archived: boolean;
 }
 
+/** scale: 0–10 score · stool: Bristol type 1–7 · event: happened (score 1) + note */
+export type SymptomType = 'scale' | 'stool' | 'event';
+
 export interface SymptomDef {
   id: ID;
   name: string;           // 'Chest pain'
-  threshold: number;      // 0–10; score > threshold is "above threshold"
-  redFlagAt?: number;     // score >= redFlagAt → red flag (chest pain: 7)
+  type: SymptomType;
+  threshold: number;      // scale only: 0–10; score > threshold is "above threshold"
+  redFlagAt?: number;     // scale only: score >= redFlagAt → red flag (chest pain: 7)
   order: number;
   archived: boolean;
 }
@@ -45,34 +49,14 @@ export interface SlotDef {
 
 // ---------- medications ----------
 export type DoseUnit = 'mg' | 'g' | 'ml' | 'pill' | 'piece' | 'drop' | 'scoop';
-export type DrugClass =
-  | 'beta_blocker' | 'ace_inhibitor' | 'arb' | 'antiarrhythmic'
-  | 'rate_control_ccb' | 'dhp_ccb' | 'diuretic' | 'if_inhibitor' | 'cardiac_glycoside' | 'other';
-
-export interface DrugPK {
-  onsetH: number;         // time to first effect
-  peakH: number;          // time to maximum effect
-  durationH: number;      // clinically relevant duration of effect for one dose
-  halfLifeH: number;
-  timingSensitive: boolean; // false → intraday timing irrelevant (amiodarone, digoxin)
-  steadyStateDays: number;  // days until a dose change can be judged
-}
-
-export interface DrugLibraryEntry extends DrugPK {
-  id: string;             // 'bisoprolol'
-  name: string;
-  class: DrugClass;
-  affects: ParameterKind[]; // which parameters it lowers, e.g. ['hr','bp']
-  typicalUnit: DoseUnit;
-  notes: string;          // short, e.g. 'Tartrate = immediate release, usually twice daily'
-}
 
 export interface Medication {
   id: ID;
   name: string;
-  libraryId: string | null;     // null = custom
   unit: DoseUnit;
-  pkOverride?: Partial<DrugPK>; // user-provided or custom values
+  /** v1 data only (drug library / timing), no longer used. */
+  libraryId?: string | null;
+  pkOverride?: Record<string, number | boolean>;
   affectsOverride?: ParameterKind[];
   archived: boolean;
 }
@@ -83,6 +67,7 @@ export interface RegimenItem {
   amount: number;
 }
 
+/** The med stack: the current version is the stack; edits create a new version so dose history stays correct. */
 export interface RegimenVersion {
   id: ID;
   effectiveFrom: ISODateTime;
@@ -99,14 +84,16 @@ export interface Reading {
   parameterId: ID;
   values: Record<string, number>; // { sys: 142, dia: 88 } or { value: 72 }
   takenAt: ISODateTime;
-  tags: ContextTag[];
+  tags: ContextTag[];     // v1 data; no longer set by the UI
+  note?: string;
 }
 
 export interface SymptomEntry {
   id: ID;
   symptomId: ID;
-  score: number;          // integer 0–10
+  score: number;          // scale: 0–10 · stool: Bristol 1–7 · event: 1
   takenAt: ISODateTime;
+  note?: string;
 }
 
 export type DoseStatus = 'taken' | 'skipped' | 'changed' | 'extra';
@@ -127,58 +114,26 @@ export interface AppSettings {
   id: 'settings';
   disclaimerAcceptedAt: ISODateTime | null;
   theme: 'dark' | 'light' | 'system';
-  analysisWindowDays: number;      // default 7
-  excludeTags: ContextTag[];       // default ['after_activity']
-  dismissedInsightKeys: string[];      // `${key}|${confidence}`
+  /** @deprecated v1 insights engine; kept so old data and backups stay valid. */
+  analysisWindowDays: number;
+  /** @deprecated v1 insights engine. */
+  excludeTags: ContextTag[];
+  /** @deprecated v1 insights engine. */
+  dismissedInsightKeys: string[];
   lastBackupAt: ISODateTime | null;
 }
 
 // ---------- engine I/O ----------
+// The engine only computes red flags (SPEC §5).
 export interface EngineSnapshot {
   now: ISODateTime;
   parameters: ParameterDef[];
   symptoms: SymptomDef[];
-  slots: SlotDef[];
-  medications: Medication[];
-  drugLibrary: DrugLibraryEntry[];
-  regimens: RegimenVersion[];   // sorted by effectiveFrom asc
   readings: Reading[];
   symptomEntries: SymptomEntry[];
-  doseEvents: DoseEvent[];
-  settings: Pick<AppSettings, 'analysisWindowDays' | 'excludeTags'>;
 }
 
-export type Confidence = 'low' | 'medium' | 'high';
 export type Direction = 'above' | 'below';
-
-export type InsightType =
-  | 'slot_out_of_range'   // R1
-  | 'end_of_dose'         // R2
-  | 'uncovered_slot'      // R3
-  | 'peak_low'            // R4
-  | 'symptom_link'        // R6
-  | 'missed_dose';        // R7
-
-export interface EvidenceRef {
-  kind: 'reading' | 'symptom' | 'dose';
-  id: ID;
-}
-
-export interface Insight {
-  key: string;            // stable dedupe key: `${type}:${parameterId}:${component}:${slotId}:${direction}`
-  type: InsightType;
-  parameterId?: ID;
-  component?: string;
-  slotId?: ID;
-  medicationId?: ID;
-  direction?: Direction;
-  confidence: Confidence;
-  title: string;          // 'Systolic BP above range in the morning'
-  explanation: string;    // facts only, with numbers
-  discussionPoint: string;// phrased as a question/option for the care team, never a mg number
-  evidence: EvidenceRef[];
-  score: number;          // for sorting: severity × confidence
-}
 
 export interface RedFlag {
   key: string;
@@ -189,34 +144,6 @@ export interface RedFlag {
   at: ISODateTime;
 }
 
-export interface SlotStat {
-  parameterId: ID;
-  component: string;
-  slotId: ID;
-  n: number;
-  inRangePct: number;     // 0–100
-  mean: number | null;
-}
-
-export interface ChangeEvaluation {
-  regimenVersionId: ID;
-  effectiveFrom: ISODateTime;
-  note: string;
-  diff: { medicationId: ID; slotId: ID; from: number | null; to: number | null }[];
-  status: 'too_early' | 'insufficient_data' | 'evaluated';
-  judgeableFrom: ISODateTime;     // effectiveFrom + max steadyStateDays of changed drugs
-  perSlot: {
-    parameterId: ID; component: string; slotId: ID;
-    before: { n: number; inRangePct: number; mean: number | null };
-    after:  { n: number; inRangePct: number; mean: number | null };
-    verdict: 'improved' | 'worse' | 'unchanged' | 'unknown';
-  }[];
-  summary: string;
-}
-
 export interface EngineResult {
   redFlags: RedFlag[];
-  insights: Insight[];            // sorted by score desc, dismissed filtered by UI
-  changeEvaluations: ChangeEvaluation[];
-  slotStats: SlotStat[];          // current regimen period, analysis window
 }

@@ -16,22 +16,28 @@ export const DEFAULT_PARAMETERS: ParameterDef[] = [
     components: [{ key: 'value', label: 'Heart rate', targetMin: 60, targetMax: 90, redFlagMin: 45, redFlagMax: 130 }],
   },
   {
-    id: 'spo2', kind: 'spo2', name: 'SpO₂', unit: '%', decimals: 0, order: 2, archived: false,
+    id: 'weight', kind: 'weight', name: 'Weight', unit: 'kg', decimals: 1, order: 2, archived: false,
+    components: [{ key: 'value', label: 'Weight' }],
+  },
+  // Archived by default (kept for v1 data, can be switched on in Settings).
+  {
+    id: 'spo2', kind: 'spo2', name: 'SpO₂', unit: '%', decimals: 0, order: 3, archived: true,
     components: [{ key: 'value', label: 'SpO₂', targetMin: 94, targetMax: 100, redFlagMin: 90 }],
   },
   {
-    id: 'rr', kind: 'rr', name: 'Respiratory rate', unit: '/min', decimals: 0, order: 3, archived: false,
+    id: 'rr', kind: 'rr', name: 'Respiratory rate', unit: '/min', decimals: 0, order: 4, archived: true,
     components: [{ key: 'value', label: 'Respiratory rate', targetMin: 12, targetMax: 20, redFlagMin: 8, redFlagMax: 25 }],
   },
 ];
 
 export const DEFAULT_SYMPTOMS: SymptomDef[] = [
-  { id: 'chest_pain', name: 'Chest pain', threshold: 2, redFlagAt: 7, order: 0, archived: false },
-  { id: 'nausea', name: 'Nausea', threshold: 3, order: 1, archived: false },
-  { id: 'exhaustion', name: 'Exhaustion', threshold: 4, order: 2, archived: false },
-  { id: 'sluggishness', name: 'Sluggishness', threshold: 4, order: 3, archived: false },
-  { id: 'back_pain', name: 'Back pain', threshold: 3, order: 4, archived: false },
+  { id: 'chest_pain', name: 'Chest pain', type: 'scale', threshold: 2, redFlagAt: 7, order: 0, archived: false },
+  { id: 'pain', name: 'Pain', type: 'scale', threshold: 3, order: 1, archived: false },
+  { id: 'stool', name: 'Stool', type: 'stool', threshold: 0, order: 2, archived: false },
 ];
+
+/** Added to existing v1 databases by the v2 upgrade (SPEC §4). */
+export const WEIGHT_PARAMETER = DEFAULT_PARAMETERS.find((p) => p.id === 'weight')!;
 
 export const DEFAULT_SLOTS: SlotDef[] = [
   { id: 'morning', name: 'Morning', startHour: 5, defaultTime: '08:00', order: 0 },

@@ -1,13 +1,17 @@
-import { DRUG_LIBRARY } from '@/engine/drugLibrary';
 import type { AppDB } from './db';
-import { DEFAULT_SETTINGS } from './seed';
-import type { EngineSnapshot } from './types';
+import type { DoseEvent, EngineSnapshot, Medication, RegimenVersion, SlotDef } from './types';
 
-export type SnapshotData = Omit<EngineSnapshot, 'now' | 'drugLibrary'>;
+/** Everything the UI shows. The engine gets the subset in EngineSnapshot. */
+export interface SnapshotData extends Omit<EngineSnapshot, 'now'> {
+  slots: SlotDef[];
+  medications: Medication[];
+  regimens: RegimenVersion[];
+  doseEvents: DoseEvent[];
+}
 
-/** Reads everything the engine needs. Used inside useLiveQuery so it re-runs on any change. */
+/** Reads all data. Used inside useLiveQuery so it re-runs on any change. */
 export async function loadSnapshotData(db: AppDB): Promise<SnapshotData> {
-  const [parameters, symptoms, slots, medications, regimens, readings, symptomEntries, doseEvents, settings] = await Promise.all([
+  const [parameters, symptoms, slots, medications, regimens, readings, symptomEntries, doseEvents] = await Promise.all([
     db.parameters.orderBy('order').toArray(),
     db.symptoms.orderBy('order').toArray(),
     db.slots.orderBy('order').toArray(),
@@ -16,17 +20,14 @@ export async function loadSnapshotData(db: AppDB): Promise<SnapshotData> {
     db.readings.orderBy('takenAt').toArray(),
     db.symptomEntries.orderBy('takenAt').toArray(),
     db.doseEvents.orderBy('takenAt').toArray(),
-    db.settings.get('settings'),
   ]);
-  const s = settings ?? DEFAULT_SETTINGS;
-  return {
-    parameters, symptoms, slots, medications, regimens, readings, symptomEntries, doseEvents,
-    settings: { analysisWindowDays: s.analysisWindowDays, excludeTags: s.excludeTags },
-  };
+  return { parameters, symptoms, slots, medications, regimens, readings, symptomEntries, doseEvents };
 }
 
 export function toSnapshot(data: SnapshotData, now: Date): EngineSnapshot {
-  return { ...data, now: now.toISOString(), drugLibrary: DRUG_LIBRARY };
+  return {
+    now: now.toISOString(), parameters: data.parameters, symptoms: data.symptoms, readings: data.readings, symptomEntries: data.symptomEntries,
+  };
 }
 
 export async function buildSnapshot(db: AppDB, now: Date): Promise<EngineSnapshot> {

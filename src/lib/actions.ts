@@ -1,7 +1,7 @@
 import { newId, type AppDB } from './db';
 import type {
-  AppSettings, ContextTag, DoseEvent, DoseStatus, ID, ISODateTime, Medication, Reading, RegimenItem, RegimenVersion,
-  SymptomEntry,
+  AppSettings, DoseEvent, DoseStatus, DoseUnit, ID, ISODateTime, Medication, ParameterDef, Reading, RegimenItem, RegimenVersion,
+  SymptomDef, SymptomEntry, SymptomType,
 } from './types';
 
 // All writes the UI performs. Each one is a single Dexie transaction.
@@ -11,22 +11,7 @@ export function currentRegimen(regimens: RegimenVersion[], now: Date): RegimenVe
   return [...regimens].sort((a, b) => a.effectiveFrom.localeCompare(b.effectiveFrom)).filter((r) => r.effectiveFrom <= t).pop();
 }
 
-export interface LogDose {
-  medicationId: ID;
-  status: DoseStatus;
-  plannedAmount: number | null;
-  actualAmount: number;
-}
-
-export interface LogInput {
-  takenAt: ISODateTime;
-  slotId: ID;
-  readings: { parameterId: ID; values: Record<string, number> }[];
-  tags: ContextTag[];
-  symptoms: { symptomId: ID; score: number }[];
-  doses: LogDose[];
-  regimenVersionId: ID | null;
-}
+// ---------- log ----------
 
 export interface SavedLog {
   readingIds: ID[];
@@ -34,25 +19,22 @@ export interface SavedLog {
   doseIds: ID[];
 }
 
-export async function saveLog(db: AppDB, input: LogInput): Promise<SavedLog> {
-  const readings: Reading[] = input.readings.map((r) => ({
-    id: newId(), parameterId: r.parameterId, values: r.values, takenAt: input.takenAt, tags: input.tags,
-  }));
-  const symptoms: SymptomEntry[] = input.symptoms.map((s) => ({
-    id: newId(), symptomId: s.symptomId, score: s.score, takenAt: input.takenAt,
-  }));
-  const doses: DoseEvent[] = input.doses.map((d) => ({
-    id: newId(), medicationId: d.medicationId, slotId: input.slotId, status: d.status, takenAt: input.takenAt,
-    regimenVersionId: d.status === 'extra' ? null : input.regimenVersionId,
-    plannedAmount: d.status === 'extra' ? null : d.plannedAmount,
-    actualAmount: d.status === 'skipped' ? 0 : d.actualAmount,
-  }));
-  await db.transaction('rw', db.readings, db.symptomEntries, db.doseEvents, async () => {
-    await db.readings.bulkAdd(readings);
-    await db.symptomEntries.bulkAdd(symptoms);
-    await db.doseEvents.bulkAdd(doses);
-  });
-  return { readingIds: readings.map((r) => r.id), symptomIds: symptoms.map((s) => s.id), doseIds: doses.map((d) => d.id) };
+export async function logReading(
+  db: AppDB, input: { parameterId: ID; values: Record<string, number>; takenAt: ISODateTime; note?: string },
+): Promise<SavedLog> {
+  const note = input.note?.trim();
+  const reading: Reading = { id: newId(), parameterId: input.parameterId, values: input.values, takenAt: input.takenAt, tags: [], ...(note ? { note } : {}) };
+  await db.readings.add(reading);
+  return { readingIds: [reading.id], symptomIds: [], doseIds: [] };
+}
+
+export async function logSymptom(
+  db: AppDB, input: { symptomId: ID; score: number; takenAt: ISODateTime; note?: string },
+): Promise<SavedLog> {
+  const note = input.note?.trim();
+  const entry: SymptomEntry = { id: newId(), symptomId: input.symptomId, score: input.score, takenAt: input.takenAt, ...(note ? { note } : {}) };
+  await db.symptomEntries.add(entry);
+  return { readingIds: [], symptomIds: [entry.id], doseIds: [] };
 }
 
 export async function undoLog(db: AppDB, saved: SavedLog): Promise<void> {
@@ -67,7 +49,43 @@ export async function deleteReading(db: AppDB, id: ID): Promise<void> {
   await db.readings.delete(id);
 }
 
-/** Regimen versions are immutable: every change creates a new version. */
+export async function deleteSymptomEntry(db: AppDB, id: ID): Promise<void> {
+  await db.symptomEntries.delete(id);
+}
+
+// ---------- doses ----------
+
+export interface DoseInput {
+  medicationId: ID;
+  slotId: ID;
+  status: Exclude<DoseStatus, 'extra'>;
+  plannedAmount: number;
+  actualAmount?: number;       // only for 'changed'
+  takenAt: ISODateTime;
+  regimenVersionId: ID | null;
+}
+
+/** Records one planned dose of the stack; replaces any earlier record for the same dose (`replaceIds`). */
+export async function recordDose(db: AppDB, input: DoseInput, replaceIds: ID[] = []): Promise<DoseEvent> {
+  const dose: DoseEvent = {
+    id: newId(), medicationId: input.medicationId, slotId: input.slotId, status: input.status, takenAt: input.takenAt,
+    regimenVersionId: input.regimenVersionId, plannedAmount: input.plannedAmount,
+    actualAmount: input.status === 'skipped' ? 0 : input.status === 'changed' ? (input.actualAmount ?? 0) : input.plannedAmount,
+  };
+  await db.transaction('rw', db.doseEvents, async () => {
+    await db.doseEvents.bulkDelete(replaceIds);
+    await db.doseEvents.add(dose);
+  });
+  return dose;
+}
+
+export async function deleteDoses(db: AppDB, ids: ID[]): Promise<void> {
+  await db.doseEvents.bulkDelete(ids);
+}
+
+// ---------- med stack ----------
+
+/** Regimen versions are immutable: every change to the stack creates a new version effective now. */
 export async function saveRegimenVersion(
   db: AppDB, input: { effectiveFrom: ISODateTime; items: RegimenItem[]; note: string }, now = new Date(),
 ): Promise<RegimenVersion> {
@@ -79,8 +97,22 @@ export async function saveRegimenVersion(
   return version;
 }
 
-export async function addMedication(db: AppDB, med: Omit<Medication, 'id' | 'archived'>): Promise<Medication> {
-  const m: Medication = { ...med, id: newId(), archived: false };
+/** Sets one medication's amounts per slot in the stack (empty `slots` removes it). */
+export async function setStackEntry(
+  db: AppDB, medicationId: ID, slots: { slotId: ID; amount: number }[], now = new Date(),
+): Promise<RegimenVersion> {
+  return db.transaction('rw', db.regimens, async () => {
+    const current = currentRegimen(await db.regimens.toArray(), now);
+    const others = (current?.items ?? []).filter((i) => i.medicationId !== medicationId);
+    const items = [...others, ...slots.map((s) => ({ medicationId, slotId: s.slotId, amount: s.amount }))];
+    // A later version would make this edit invisible: never go back in time.
+    const effectiveFrom = current && current.effectiveFrom > now.toISOString() ? current.effectiveFrom : now.toISOString();
+    return saveRegimenVersion(db, { effectiveFrom, items, note: '' }, now);
+  });
+}
+
+export async function addMedication(db: AppDB, med: { name: string; unit: DoseUnit }): Promise<Medication> {
+  const m: Medication = { id: newId(), name: med.name.trim(), unit: med.unit, archived: false };
   await db.medications.add(m);
   return m;
 }
@@ -89,19 +121,48 @@ export async function updateMedication(db: AppDB, id: ID, changes: Partial<Medic
   await db.medications.update(id, changes);
 }
 
-export async function updateSettings(db: AppDB, changes: Partial<AppSettings>): Promise<void> {
-  await db.settings.update('settings', changes);
-}
-
-export async function dismissInsight(db: AppDB, key: string, confidence: string): Promise<void> {
-  await db.transaction('rw', db.settings, async () => {
-    const s = await db.settings.get('settings');
-    if (!s) return;
-    const entry = `${key}|${confidence}`;
-    if (!s.dismissedInsightKeys.includes(entry)) await db.settings.update('settings', { dismissedInsightKeys: [...s.dismissedInsightKeys, entry] });
+/** Archives a medication and takes it off the stack. Its dose history stays. */
+export async function archiveMedication(db: AppDB, id: ID, now = new Date()): Promise<void> {
+  await db.transaction('rw', db.medications, db.regimens, async () => {
+    await db.medications.update(id, { archived: true });
+    const current = currentRegimen(await db.regimens.toArray(), now);
+    if (current?.items.some((i) => i.medicationId === id)) await setStackEntry(db, id, [], now);
   });
 }
 
-export function isDismissed(settings: AppSettings | undefined, key: string, confidence: string): boolean {
-  return !!settings?.dismissedInsightKeys.includes(`${key}|${confidence}`);
+// ---------- trackers ----------
+
+export interface NewNumberTracker {
+  name: string;
+  unit: string;
+  decimals: number;
+  targetMin?: number;
+  targetMax?: number;
+}
+
+export async function addNumberTracker(db: AppDB, t: NewNumberTracker): Promise<ParameterDef> {
+  const order = ((await db.parameters.orderBy('order').last())?.order ?? -1) + 1;
+  const p: ParameterDef = {
+    id: newId(), kind: 'custom', name: t.name.trim(), unit: t.unit.trim(), decimals: t.decimals, order, archived: false,
+    components: [{ key: 'value', label: t.name.trim(), targetMin: t.targetMin, targetMax: t.targetMax }],
+  };
+  await db.parameters.add(p);
+  return p;
+}
+
+export async function addSymptomTracker(db: AppDB, t: { name: string; type: SymptomType; threshold?: number }): Promise<SymptomDef> {
+  const order = ((await db.symptoms.orderBy('order').last())?.order ?? -1) + 1;
+  const s: SymptomDef = { id: newId(), name: t.name.trim(), type: t.type, threshold: t.threshold ?? 0, order, archived: false };
+  await db.symptoms.add(s);
+  return s;
+}
+
+export async function setTrackerArchived(db: AppDB, kind: 'parameter' | 'symptom', id: ID, archived: boolean): Promise<void> {
+  await (kind === 'parameter' ? db.parameters : db.symptoms).update(id, { archived });
+}
+
+// ---------- settings ----------
+
+export async function updateSettings(db: AppDB, changes: Partial<AppSettings>): Promise<void> {
+  await db.settings.update('settings', changes);
 }

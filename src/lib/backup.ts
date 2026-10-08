@@ -1,4 +1,5 @@
 import type { AppDB } from './db';
+import { upgradeParameters, upgradeSymptoms } from './migrate';
 import type {
   AppSettings, DoseEvent, Medication, ParameterDef, Reading, RegimenVersion, SlotDef, SymptomDef, SymptomEntry,
 } from './types';
@@ -6,7 +7,7 @@ import type {
 // JSON backup (meta/SPEC.md §8).
 
 export const BACKUP_APP = 'medicine-adjuster';
-export const BACKUP_SCHEMA_VERSION = 1;
+export const BACKUP_SCHEMA_VERSION = 2;
 
 export interface BackupData {
   parameters: ParameterDef[];
@@ -41,17 +42,17 @@ export async function createBackup(db: AppDB, now = new Date()): Promise<Backup>
 
 export function backupFilename(now = new Date()): string {
   const p = (n: number) => String(n).padStart(2, '0');
-  return `medicine-adjuster-${now.getFullYear()}-${p(now.getMonth() + 1)}-${p(now.getDate())}-${p(now.getHours())}${p(now.getMinutes())}.json`;
+  return `health-tracker-${now.getFullYear()}-${p(now.getMonth() + 1)}-${p(now.getDate())}-${p(now.getHours())}${p(now.getMinutes())}.json`;
 }
 
 export class BackupError extends Error {}
 
-/** Validates a parsed backup file. Throws BackupError with a user-readable message. */
+/** Validates a parsed backup file (v1 files are upgraded to v2). Throws BackupError with a user-readable message. */
 export function validateBackup(raw: unknown): Backup {
   if (!raw || typeof raw !== 'object') throw new BackupError('This file is not a backup.');
   const b = raw as Partial<Backup>;
-  if (b.app !== BACKUP_APP) throw new BackupError('This file is not a MedicineAdjuster backup.');
-  if (b.schemaVersion !== BACKUP_SCHEMA_VERSION) {
+  if (b.app !== BACKUP_APP) throw new BackupError('This file is not a Health Tracker backup.');
+  if (b.schemaVersion !== 1 && b.schemaVersion !== BACKUP_SCHEMA_VERSION) {
     throw new BackupError(`Unsupported backup version ${String(b.schemaVersion)}. Update the app and try again.`);
   }
   if (!b.data || typeof b.data !== 'object') throw new BackupError('The backup has no data.');
@@ -63,6 +64,12 @@ export function validateBackup(raw: unknown): Backup {
     }
   }
   if (b.data.settings.length === 0) throw new BackupError('The backup has no settings.');
+  if (b.schemaVersion === 1) {
+    return {
+      ...(b as Backup), schemaVersion: BACKUP_SCHEMA_VERSION,
+      data: { ...b.data, parameters: upgradeParameters(b.data.parameters), symptoms: upgradeSymptoms(b.data.symptoms) },
+    };
+  }
   return b as Backup;
 }
 
