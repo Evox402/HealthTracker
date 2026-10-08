@@ -31,7 +31,7 @@ export function SettingsScreen() {
         options={[{ value: 'general', label: 'General' }, { value: 'trackers', label: 'Trackers' }]} />
 
       {section === 'trackers' ? (
-        <TrackersSection parameters={data.parameters} symptoms={data.symptoms} />
+        <TrackersSection parameters={data.parameters} symptoms={data.symptoms} readings={data.readings} symptomEntries={data.symptomEntries} />
       ) : (
         <>
           <BackupSection settings={s} />

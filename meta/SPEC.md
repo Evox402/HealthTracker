@@ -306,7 +306,7 @@ Bottom nav: Today · Charts · Meds · Doctor. Data access goes through `hooks/u
 - Summary (min/mean/max/in range; scale mean/max/above threshold; stool type distribution and per day; event count and days) and the last 12 entries with delete + Undo.
 
 **Settings → Trackers**
-- Show/hide any tracker (archive; data kept). New tracker: name + type (0–10 / Stool / Number with unit, decimals, optional target min/max / Yes-No). Targets and red flags for shown number trackers and thresholds/red flags for scale trackers; empty = none.
+- Show/hide any tracker (archive; data kept). Delete a tracker with all its entries (confirmation shows the entry count; Undo in the toast restores both). New tracker: name + type (0–10 / Stool / Number with unit, decimals, optional target min/max / Yes-No). Targets and red flags for shown number trackers and thresholds/red flags for scale trackers; empty = none.
 
 ---
 
