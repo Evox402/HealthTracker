@@ -3,7 +3,7 @@ import Dexie from 'dexie';
 import { runEngine } from '@/engine';
 import {
   addMedication, addNumberTracker, addSymptomTracker, archiveMedication, currentRegimen, logReading, logSymptom, recordDose,
-  saveRegimenVersion, setStackEntry, setTrackerArchived, undoLog,
+  deleteTracker, restoreTracker, saveRegimenVersion, setStackEntry, setTrackerArchived, undoLog,
 } from './actions';
 import { BackupError, backupCounts, backupFilename, createBackup, parseBackup, restoreBackup } from './backup';
 import { AppDB } from './db';
@@ -158,6 +158,28 @@ describe('trackers', () => {
     expect(dizzy).toMatchObject({ type: 'event', order: 3, archived: false });
     await setTrackerArchived(db, 'symptom', dizzy.id, true);
     expect((await db.symptoms.get(dizzy.id))?.archived).toBe(true);
+  });
+
+  it('deletes a tracker with its entries and can restore both', async () => {
+    const temp = await addNumberTracker(db, { name: 'Temperature', unit: '°C', decimals: 1 });
+    const dizzy = await addSymptomTracker(db, { name: 'Dizziness', type: 'event' });
+    await logReading(db, { parameterId: temp.id, values: { value: 37.2 }, takenAt: '2026-10-08T06:00:00.000Z' });
+    await logReading(db, { parameterId: 'hr', values: { value: 72 }, takenAt: '2026-10-08T06:00:00.000Z' });
+    await logSymptom(db, { symptomId: dizzy.id, score: 1, takenAt: '2026-10-08T07:00:00.000Z', note: 'standing up' });
+
+    const deletedTemp = await deleteTracker(db, 'parameter', temp.id);
+    const deletedDizzy = await deleteTracker(db, 'symptom', dizzy.id);
+    expect(deletedTemp.entries).toHaveLength(1);
+    expect(await db.parameters.get(temp.id)).toBeUndefined();
+    expect(await db.symptoms.get(dizzy.id)).toBeUndefined();
+    expect((await db.readings.toArray()).map((r) => r.parameterId)).toEqual(['hr']); // other trackers untouched
+    expect(await db.symptomEntries.count()).toBe(0);
+
+    await restoreTracker(db, deletedTemp);
+    await restoreTracker(db, deletedDizzy);
+    expect((await db.parameters.get(temp.id))?.name).toBe('Temperature');
+    expect(await db.readings.count()).toBe(2);
+    expect((await db.symptomEntries.toArray())[0].note).toBe('standing up');
   });
 });
 

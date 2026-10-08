@@ -161,6 +161,46 @@ export async function setTrackerArchived(db: AppDB, kind: 'parameter' | 'symptom
   await (kind === 'parameter' ? db.parameters : db.symptoms).update(id, { archived });
 }
 
+export type DeletedTracker =
+  | { kind: 'parameter'; def: ParameterDef; entries: Reading[] }
+  | { kind: 'symptom'; def: SymptomDef; entries: SymptomEntry[] };
+
+/** Deletes a tracker and all its entries. Returns what was removed so the UI can undo it. */
+export async function deleteTracker(db: AppDB, kind: 'parameter' | 'symptom', id: ID): Promise<DeletedTracker> {
+  if (kind === 'parameter') {
+    return db.transaction('rw', db.parameters, db.readings, async () => {
+      const def = await db.parameters.get(id);
+      if (!def) throw new Error(`No tracker ${id}`);
+      const entries = await db.readings.where('parameterId').equals(id).toArray();
+      await db.readings.bulkDelete(entries.map((e) => e.id));
+      await db.parameters.delete(id);
+      return { kind, def, entries };
+    });
+  }
+  return db.transaction('rw', db.symptoms, db.symptomEntries, async () => {
+    const def = await db.symptoms.get(id);
+    if (!def) throw new Error(`No tracker ${id}`);
+    const entries = await db.symptomEntries.where('symptomId').equals(id).toArray();
+    await db.symptomEntries.bulkDelete(entries.map((e) => e.id));
+    await db.symptoms.delete(id);
+    return { kind, def, entries };
+  });
+}
+
+export async function restoreTracker(db: AppDB, deleted: DeletedTracker): Promise<void> {
+  if (deleted.kind === 'parameter') {
+    await db.transaction('rw', db.parameters, db.readings, async () => {
+      await db.parameters.put(deleted.def);
+      await db.readings.bulkPut(deleted.entries);
+    });
+  } else {
+    await db.transaction('rw', db.symptoms, db.symptomEntries, async () => {
+      await db.symptoms.put(deleted.def);
+      await db.symptomEntries.bulkPut(deleted.entries);
+    });
+  }
+}
+
 // ---------- settings ----------
 
 export async function updateSettings(db: AppDB, changes: Partial<AppSettings>): Promise<void> {

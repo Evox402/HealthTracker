@@ -106,6 +106,21 @@ test('create a custom tracker, log it and see it in Charts', async ({ page }) =>
   await expect(page.getByRole('img', { name: 'Night stool, Bristol type 1 to 7' })).toBeVisible();
   await expect(page.getByRole('img', { name: 'Night stool per day' })).toBeVisible();
   await expect(page.getByText('Type 4 · Smooth').first()).toBeVisible();
+
+  // Delete it (with its entry), undo, then delete for good.
+  await nav(page, 'Today').click();
+  await page.getByRole('link', { name: '+ New tracker' }).click();
+  await page.getByRole('button', { name: 'Delete Night stool' }).click();
+  const confirm = page.getByRole('alertdialog', { name: 'Delete Night stool?' });
+  await expect(confirm).toContainText('1 entry');
+  await confirm.getByRole('button', { name: 'Delete' }).click();
+  await expect(page.getByText('Night stool deleted')).toBeVisible();
+  await page.getByRole('button', { name: 'Undo' }).click();
+  await expect(page.getByRole('button', { name: 'Delete Night stool' })).toBeVisible();
+  await page.getByRole('button', { name: 'Delete Night stool' }).click();
+  await page.getByRole('alertdialog').getByRole('button', { name: 'Delete' }).click();
+  await page.getByRole('link', { name: 'Back to Today' }).click();
+  await expect(page.getByRole('link', { name: 'Log Night stool', exact: true })).toHaveCount(0);
 });
 
 test('med stack: add a medication, tick it off and undo', async ({ page }) => {
