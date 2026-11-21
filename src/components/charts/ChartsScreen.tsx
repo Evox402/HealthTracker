@@ -1,4 +1,4 @@
-import { Plus, Trash2 } from 'lucide-react';
+import { Layers, Plus, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { Loading, Screen, SectionTitle } from '@/components/layout/Screen';
@@ -15,7 +15,7 @@ import { componentStatus, componentTargetText, fmtDay, fmtDayTime, fmtValue, has
 import { allTrackers, BRISTOL, findTracker, fmtSymptom, trackerPath, type Tracker } from '@/lib/trackers';
 import type { Reading, SymptomEntry } from '@/lib/types';
 import { EventChart } from './EventChart';
-import { TrendChart, type ChartPoint } from './TrendChart';
+import { TrendChart, type ChartPoint, type ChartOverlay } from './TrendChart';
 
 const DAY = 86_400_000;
 const RANGES = [
@@ -28,17 +28,24 @@ const RANGES = [
 
 type Entry = { kind: 'reading'; row: Reading } | { kind: 'symptom'; row: SymptomEntry };
 
-/** One chart per tracker: numeric trend, 0–10 scale, Bristol types and entries per day. */
+const ALL = 'all';
+const keyOf = (t: Pick<Tracker, 'kind' | 'id'>) => `${t.kind}:${t.id}`;
+
+function entriesFor(data: NonNullable<ReturnType<typeof useAppData>>, t: Tracker): Entry[] {
+  return t.kind === 'p'
+    ? data.readings.filter((r) => r.parameterId === t.id).map((row) => ({ kind: 'reading' as const, row }))
+    : data.symptomEntries.filter((e) => e.symptomId === t.id).map((row) => ({ kind: 'symptom' as const, row }));
+}
+
+/** One chart per tracker: numeric trend, 0–10 scale, Bristol types and entries per day. Compare mode stacks several. */
 export function ChartsScreen() {
   const data = useAppData();
   const now = useNow();
   const navigate = useNavigate();
-  const toast = useToast();
   const params = useParams();
-  const [componentKey, setComponentKey] = useState<string | null>(null);
   const [range, setRange] = useState<(typeof RANGES)[number]['value']>('14');
-  const [selected, setSelected] = useState<string | null>(null);
-  const [selectedDay, setSelectedDay] = useState<number | null>(null);
+  const [compare, setCompare] = useState(false);
+  const [picked, setPicked] = useState<string[]>([]);
   if (!data) return <Loading />;
 
   const trackers = allTrackers(data.parameters, data.symptoms);
@@ -51,43 +58,31 @@ export function ChartsScreen() {
     );
   }
 
+  const shown = compare ? trackers.filter((t) => picked.includes(keyOf(t))) : [tracker];
+  const visible = shown.length ? shown : [tracker];
   const to = now.getTime();
-  const entries: Entry[] = tracker.kind === 'p'
-    ? data.readings.filter((r) => r.parameterId === tracker.id).map((row) => ({ kind: 'reading', row }))
-    : data.symptomEntries.filter((e) => e.symptomId === tracker.id).map((row) => ({ kind: 'symptom', row }));
-  const first = entries.length ? Date.parse(entries[0].row.takenAt) : to - 7 * DAY;
+  // One shared time axis, so stacked charts line up.
+  const firsts = visible.flatMap((t) => entriesFor(data, t).map((e) => Date.parse(e.row.takenAt)));
+  const first = firsts.length ? Math.min(...firsts) : to - 7 * DAY;
   const from = range === 'all' ? Math.min(first, to - DAY) : to - Number(range) * DAY;
-  const inRange = entries.filter((e) => {
-    const t = Date.parse(e.row.takenAt);
-    return t >= from && t <= to;
-  });
 
   function pick(t: Tracker) {
-    setComponentKey(null);
-    setSelected(null);
-    setSelectedDay(null);
-    navigate(`/charts/${trackerPath(t)}`, { replace: true });
+    if (compare) {
+      const k = keyOf(t);
+      setPicked((p) => (p.includes(k) ? (p.length > 1 ? p.filter((x) => x !== k) : p) : [...p, k]));
+    } else {
+      navigate(`/charts/${trackerPath(t)}`, { replace: true });
+    }
   }
 
-  async function remove(e: Entry) {
-    if (e.kind === 'reading') await db.readings.delete(e.row.id);
-    else await db.symptomEntries.delete(e.row.id);
-    toast({
-      message: 'Entry deleted',
-      action: { label: 'Undo', onClick: () => void (e.kind === 'reading' ? db.readings.put(e.row) : db.symptomEntries.put(e.row)) },
-    });
+  function toggleCompare() {
+    if (!compare) setPicked([keyOf(tracker)]);
+    else if (picked.length) {
+      const t = trackers.find((x) => keyOf(x) === picked[0]);
+      if (t) navigate(`/charts/${trackerPath(t)}`, { replace: true });
+    }
+    setCompare(!compare);
   }
-
-  const describe = (e: Entry) =>
-    e.kind === 'reading' && tracker.kind === 'p'
-      ? tracker.def.components.map((c) => (e.row.values[c.key] === undefined ? '–' : fmtValue(e.row.values[c.key], tracker.def.decimals))).join('/') + ` ${tracker.def.unit}`
-      : e.kind === 'symptom' && tracker.kind === 's' ? fmtSymptom(tracker.def, e.row) : '';
-
-  const dayEntries = selectedDay === null ? [] : inRange.filter((e) => {
-    const t = Date.parse(e.row.takenAt);
-    return t >= selectedDay && t < selectedDay + DAY;
-  });
-  const recent = [...inRange].reverse().slice(0, 12);
 
   return (
     <Screen
@@ -95,27 +90,73 @@ export function ChartsScreen() {
       action={<Link to={`/log/${trackerPath(tracker)}`} aria-label={`Log ${tracker.name}`} className={buttonClass('primary', 'icon')}><Plus size={22} aria-hidden /></Link>}
     >
       <div role="group" aria-label="Tracker" className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1">
+        <Chip pressed={compare} onClick={toggleCompare} className="shrink-0 whitespace-nowrap">
+          <Layers size={14} aria-hidden className="mr-1 inline" />Compare
+        </Chip>
         {trackers.map((t) => (
-          <Chip key={`${t.kind}:${t.id}`} pressed={t === tracker} onClick={() => pick(t)} className="shrink-0 whitespace-nowrap">{t.name}</Chip>
+          <Chip key={keyOf(t)} pressed={compare ? picked.includes(keyOf(t)) : t === tracker} onClick={() => pick(t)} className="shrink-0 whitespace-nowrap">{t.name}</Chip>
         ))}
       </div>
+      {compare && <p className="m-0 text-xs text-[var(--text-secondary)]">Tap trackers to stack their charts below each other on the same time axis.</p>}
 
+      {visible.map((t) => (
+        <ChartCard key={keyOf(t)} tracker={t} entries={entriesFor(data, t)} from={from} to={to} compact={compare} />
+      ))}
+
+      <Card className="py-2">
+        <div className="flex gap-1.5 px-1">
+          {RANGES.map((r) => (
+            <Chip key={r.value} pressed={range === r.value} onClick={() => setRange(r.value)} className="rounded-[10px] px-3">{r.label}</Chip>
+          ))}
+        </div>
+      </Card>
+
+      {!compare && <Details tracker={tracker} entries={entriesFor(data, tracker).filter((e) => { const t = Date.parse(e.row.takenAt); return t >= from && t <= to; })} />}
+    </Screen>
+  );
+}
+
+interface ChartCardProps {
+  tracker: Tracker;
+  entries: Entry[];
+  from: number;
+  to: number;
+  compact: boolean;
+}
+
+function ChartCard({ tracker, entries, from, to, compact }: ChartCardProps) {
+  const [componentKey, setComponentKey] = useState<string | null>(null);
+  const [selected, setSelected] = useState<string | null>(null);
+  const [selectedDay, setSelectedDay] = useState<number | null>(null);
+  const inRange = entries.filter((e) => {
+    const t = Date.parse(e.row.takenAt);
+    return t >= from && t <= to;
+  });
+  const describe = (e: Entry) => describeEntry(tracker, e);
+  const dayEntries = selectedDay === null ? [] : inRange.filter((e) => {
+    const t = Date.parse(e.row.takenAt);
+    return t >= selectedDay && t < selectedDay + DAY;
+  });
+
+  return (
+    <>
       {tracker.kind === 'p' && tracker.def.components.length > 1 && (
-        <Segmented label="Value" value={(tracker.def.components.find((c) => c.key === componentKey) ?? tracker.def.components[0]).key}
-          onChange={setComponentKey} options={tracker.def.components.map((c) => ({ value: c.key, label: c.label }))} />
+        <Segmented label={`${tracker.name} value`} value={componentKey ?? ALL}
+          onChange={(v) => setComponentKey(v === ALL ? null : v)}
+          options={[{ value: ALL, label: 'All' }, ...tracker.def.components.map((c) => ({ value: c.key, label: c.label }))]} />
       )}
-
       <Card className="px-3">
         <div className="flex items-baseline justify-between px-1">
           <h2 className="m-0 text-base font-extrabold">{tracker.name}{tracker.kind === 'p' ? ` · ${tracker.def.unit}` : ''}</h2>
           <span className="text-[13px] text-[var(--text-muted)]">{inRange.length} entries</span>
         </div>
         {inRange.length === 0 ? (
-          <p className="m-0 px-1 py-10 text-center text-sm text-[var(--text-muted)]">No entries in this period yet.</p>
+          <p className={cn('m-0 px-1 text-center text-sm text-[var(--text-muted)]', compact ? 'py-4' : 'py-10')}>No entries in this period yet.</p>
         ) : (
           <TrackerChart tracker={tracker} entries={inRange} componentKey={componentKey} from={from} to={to}
             selected={selected} onSelect={(id) => { setSelected(id); setSelectedDay(null); }}
-            selectedDay={selectedDay} onSelectDay={(d) => { setSelectedDay(d); setSelected(null); }} />
+            selectedDay={selectedDay} onSelectDay={(d) => { setSelectedDay(d); setSelected(null); }}
+            height={compact ? 150 : undefined} />
         )}
         {selected && inRange.filter((e) => e.row.id === selected).map((e) => (
           <div key={e.row.id} className="num flex flex-col gap-0.5 rounded-xl bg-[var(--surface-2)] px-3 py-2 text-sm">
@@ -134,15 +175,38 @@ export function ChartsScreen() {
           </div>
         )}
         <Legend tracker={tracker} componentKey={componentKey} />
-        <div className="flex gap-1.5 px-1">
-          {RANGES.map((r) => (
-            <Chip key={r.value} pressed={range === r.value} onClick={() => setRange(r.value)} className="rounded-[10px] px-3">{r.label}</Chip>
-          ))}
-        </div>
       </Card>
+    </>
+  );
+}
 
-      {inRange.length > 0 && <Summary tracker={tracker} entries={inRange} />}
+function describeEntry(tracker: Tracker, e: Entry): string {
+  return e.kind === 'reading' && tracker.kind === 'p'
+    ? tracker.def.components.map((c) => (e.row.values[c.key] === undefined ? '–' : fmtValue(e.row.values[c.key], tracker.def.decimals))).join('/') + ` ${tracker.def.unit}`
+    : e.kind === 'symptom' && tracker.kind === 's' ? fmtSymptom(tracker.def, e.row) : '';
+}
 
+interface DetailsProps {
+  tracker: Tracker;
+  entries: Entry[];
+}
+
+function Details({ tracker, entries }: DetailsProps) {
+  const toast = useToast();
+  const recent = [...entries].reverse().slice(0, 12);
+
+  async function remove(e: Entry) {
+    if (e.kind === 'reading') await db.readings.delete(e.row.id);
+    else await db.symptomEntries.delete(e.row.id);
+    toast({
+      message: 'Entry deleted',
+      action: { label: 'Undo', onClick: () => void (e.kind === 'reading' ? db.readings.put(e.row) : db.symptomEntries.put(e.row)) },
+    });
+  }
+
+  return (
+    <>
+      {entries.length > 0 && <Summary tracker={tracker} entries={entries} />}
       {recent.length > 0 && (
         <>
           <SectionTitle>Recent entries</SectionTitle>
@@ -151,7 +215,7 @@ export function ChartsScreen() {
               {recent.map((e) => (
                 <li key={e.row.id} className="flex items-center justify-between gap-2 border-b border-[var(--border)] py-2 last:border-b-0">
                   <span className="flex min-w-0 flex-col">
-                    <span className="num text-[15px] font-extrabold">{describe(e)}</span>
+                    <span className="num text-[15px] font-extrabold">{describeEntry(tracker, e)}</span>
                     <span className="truncate text-xs text-[var(--text-muted)]">{fmtDayTime(new Date(e.row.takenAt))}{e.row.note ? ` · ${e.row.note}` : ''}</span>
                   </span>
                   <Button variant="ghost" size="icon" aria-label={`Delete entry from ${fmtDayTime(new Date(e.row.takenAt))}`} onClick={() => void remove(e)}>
@@ -163,7 +227,7 @@ export function ChartsScreen() {
           </Card>
         </>
       )}
-    </Screen>
+    </>
   );
 }
 
@@ -185,14 +249,29 @@ interface TrackerChartProps {
 /** The right chart for each tracker type. */
 export function TrackerChart({ tracker, entries, componentKey, from, to, selected, onSelect, selectedDay, onSelectDay, print, height, width }: TrackerChartProps) {
   if (tracker.kind === 'p') {
-    const c = tracker.def.components.find((x) => x.key === componentKey) ?? tracker.def.components[0];
-    const points: ChartPoint[] = entries.flatMap((e) =>
-      e.kind === 'reading' && e.row.values[c.key] !== undefined
-        ? [{ id: e.row.id, at: Date.parse(e.row.takenAt), value: e.row.values[c.key], status: componentStatus(c, e.row.values[c.key]) }]
-        : []);
-    const band: [number, number] | undefined = c.targetMin !== undefined && c.targetMax !== undefined ? [c.targetMin, c.targetMax] : undefined;
+    const comps = tracker.def.components;
+    const series = (c: (typeof comps)[number]) => ({
+      points: entries.flatMap((e): ChartPoint[] =>
+        e.kind === 'reading' && e.row.values[c.key] !== undefined
+          ? [{ id: e.row.id, at: Date.parse(e.row.takenAt), value: e.row.values[c.key], status: componentStatus(c, e.row.values[c.key]) }]
+          : []),
+      band: (c.targetMin !== undefined && c.targetMax !== undefined ? [c.targetMin, c.targetMax] : undefined) as [number, number] | undefined,
+    });
+    const single = comps.find((x) => x.key === componentKey);
+    if (comps.length > 1 && !single) {
+      // All components in one plot: first = dots, others = dashed line with square markers.
+      const [head, ...rest] = comps;
+      const h = series(head);
+      const overlay: ChartOverlay[] = rest.map((c) => ({ label: c.label, ...series(c) }));
+      return (
+        <TrendChart label={`${comps.map((c) => c.label).join(' and ')}, ${tracker.def.unit}`} points={h.points} band={h.band} overlay={overlay}
+          from={from} to={to} selectedId={selected} onSelect={onSelect} print={print} height={height} width={width} />
+      );
+    }
+    const c = single ?? comps[0];
+    const sc = series(c);
     return (
-      <TrendChart label={`${c.label}${hasTarget(c) ? `, target ${componentTargetText(c)}` : ''}`} points={points} band={band}
+      <TrendChart label={`${c.label}${hasTarget(c) ? `, target ${componentTargetText(c)}` : ''}`} points={sc.points} band={sc.band}
         from={from} to={to} selectedId={selected} onSelect={onSelect} print={print} height={height} width={width} />
     );
   }
@@ -230,13 +309,24 @@ interface LegendProps {
 function Legend({ tracker, componentKey }: LegendProps) {
   const item = 'flex items-center gap-1.5';
   if (tracker.kind === 'p') {
-    const c = tracker.def.components.find((x) => x.key === componentKey) ?? tracker.def.components[0];
-    if (!hasTarget(c)) return null;
+    const comps = tracker.def.components;
+    const combined = comps.length > 1 && !comps.some((x) => x.key === componentKey);
+    const c = comps.find((x) => x.key === componentKey) ?? comps[0];
+    if (!combined && !hasTarget(c)) return null;
     return (
       <div className="flex flex-wrap gap-x-3.5 gap-y-1.5 px-1 text-xs text-[var(--text-secondary)]">
-        <span className={item}><span className="size-2.5 rounded-full bg-[var(--gain)]" />✓ In range</span>
-        <span className={item}><span className="size-2.5 rounded-full bg-[var(--warn)]" />▲▼ Out of range</span>
-        <span className={item}><span className="h-2.5 w-3.5 rounded-sm bg-[var(--band)]" />Target {componentTargetText(c)}</span>
+        {combined && comps.map((x, i) => (
+          <span key={x.key} className={item}>
+            <span className={cn('size-2.5 bg-[var(--text-muted)]', i === 0 ? 'rounded-full' : 'rounded-[2px]')} />{x.label} ({i === 0 ? 'dots' : 'squares'})
+          </span>
+        ))}
+        {(!combined || comps.some(hasTarget)) && (
+          <>
+            <span className={item}><span className="size-2.5 rounded-full bg-[var(--gain)]" />✓ In range</span>
+            <span className={item}><span className="size-2.5 rounded-full bg-[var(--warn)]" />▲▼ Out of range</span>
+            <span className={item}><span className="h-2.5 w-3.5 rounded-sm bg-[var(--band)]" />Target {comps.filter(hasTarget).map(componentTargetText).join(' · ')}</span>
+          </>
+        )}
       </div>
     );
   }
