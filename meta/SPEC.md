@@ -301,7 +301,8 @@ Bottom nav: Today · Charts · Meds · Doctor. Data access goes through `hooks/u
 - Optional note. Save writes one row, shows a toast with Undo (5 s) and returns to the screen it came from.
 
 **Charts**
-- Tracker chips, component switch for BP, range 7/14/30/90 days/All.
+- Tracker chips, component switch for multi-value trackers (BP): **All** (default; all components in one plot: first as dots, others as dashed line with square markers, so series differ by shape, not colour alone) / one component. Range 7/14/30/90 days/All.
+- **Compare** chip: tap several trackers to stack one chart card per tracker below each other on a shared time axis and range (Summary and recent entries are hidden in this mode).
 - Number: line/dot chart with the target band when min and max are set; status by symbol and colour. Scale: 0–10 axis with band 0–threshold. Stool: Bristol type per entry (1–7 axis) plus entries per day. Event: entries per day. Tap a point or bar for details and notes.
 - Summary (min/mean/max/in range; scale mean/max/above threshold; stool type distribution and per day; event count and days) and the last 12 entries with delete + Undo.
 

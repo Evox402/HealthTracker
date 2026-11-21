@@ -175,3 +175,24 @@ test('a v1 MedicineAdjuster backup is upgraded on restore', async ({ page }) => 
   await expect(page.getByRole('link', { name: 'Log SpO₂', exact: true })).toHaveCount(0);
   await expect(page.getByRole('link', { name: /^Pain, last/ })).toBeVisible();
 });
+
+test('charts: BP shows both values in one chart, Compare stacks trackers', async ({ page }, info) => {
+  await onboard(page);
+  await restore(page, demoBackup());
+  await nav(page, 'Charts').click();
+  const trackers = page.getByRole('group', { name: 'Tracker' });
+
+  await trackers.getByRole('button', { name: 'Blood pressure', exact: true }).click();
+  await expect(page.getByRole('img', { name: /Systolic and Diastolic/ })).toBeVisible();
+  await expect(page.getByRole('img')).toHaveCount(1);
+  const values = page.getByRole('group', { name: 'Blood pressure value' });
+  await values.getByRole('button', { name: 'Diastolic', exact: true }).click();
+  await expect(page.getByRole('img', { name: /^Diastolic/ })).toBeVisible();
+  await values.getByRole('button', { name: 'All', exact: true }).click();
+
+  await trackers.getByRole('button', { name: 'Compare' }).click();
+  await trackers.getByRole('button', { name: 'Heart rate', exact: true }).click();
+  await expect(page.getByRole('img', { name: /Systolic and Diastolic/ })).toBeVisible();
+  await expect(page.getByRole('img', { name: /^Heart rate/ })).toBeVisible();
+  await page.screenshot({ path: info.outputPath('charts-compare.png'), fullPage: true });
+});
